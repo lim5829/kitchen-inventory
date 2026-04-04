@@ -348,26 +348,10 @@ onValue(itemsRef, (snap) => {
   if (firstLoad) {
     firstLoad = false;
     document.getElementById('loading').classList.add('hidden');
-    if (!snap.exists()) seedData();
   }
   setSyncStatus(true);
   renderTable();
 }, () => setSyncStatus(false));
-
-function seedData() {
-  [
-    {name:'에티오피아 원두', category:'원두/커피', quantity:2000, min:500, unit:'g', location:'원두 보관함', expiry:'', memo:'예가체프'},
-    {name:'우유', category:'유제품', quantity:8, min:4, unit:'팩', location:'냉장고', expiry:'2026-04-10', memo:'매일'},
-    {name:'오트밀크', category:'유제품', quantity:2, min:3, unit:'팩', location:'냉장고', expiry:'2026-04-12', memo:''},
-    {name:'바닐라 시럽', category:'시럽/소스', quantity:500, min:200, unit:'ml', location:'바 위', expiry:'', memo:''},
-    {name:'헤이즐넛 시럽', category:'시럽/소스', quantity:150, min:200, unit:'ml', location:'바 위', expiry:'', memo:''},
-    {name:'얼음', category:'냉동/얼음', quantity:10, min:5, unit:'kg', location:'냉동고', expiry:'', memo:''},
-    {name:'탄산수', category:'음료베이스', quantity:24, min:12, unit:'캔', location:'창고', expiry:'2026-08-01', memo:''},
-    {name:'종이컵(M)', category:'소모품', quantity:200, min:100, unit:'개', location:'창고', expiry:'', memo:'12oz'},
-    {name:'냅킨', category:'소모품', quantity:500, min:200, unit:'장', location:'창고', expiry:'', memo:''},
-    {name:'스트로우', category:'소모품', quantity:0, min:100, unit:'개', location:'창고', expiry:'', memo:'친환경 종이'},
-  ].forEach(item => push(itemsRef, item));
-}
 
 // Save categories to Firebase immediately
 function saveCats() {
