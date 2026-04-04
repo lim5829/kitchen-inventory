@@ -227,6 +227,40 @@
   </div>
 </div>
 
+<!-- Admin Auth Modal -->
+<div class="modal-bg" id="modal-admin-auth">
+  <div class="modal" style="width:300px;text-align:center">
+    <h3>⚙️ 관리자 인증</h3>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:14px">관리자 비밀번호를 입력하세요</p>
+    <input type="password" id="admin-pw-input" placeholder="비밀번호"
+      style="text-align:center;letter-spacing:4px;font-size:16px"
+      onkeydown="if(event.key==='Enter') tryAdminAuth()">
+    <div class="login-err" id="admin-auth-err"></div>
+    <div class="modal-actions" style="margin-top:8px">
+      <button class="btn" onclick="closeAdminAuth()">취소</button>
+      <button class="btn primary" onclick="tryAdminAuth()">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- Admin Menu Modal -->
+<div class="modal-bg" id="modal-admin-menu">
+  <div class="modal" style="width:300px">
+    <h3>⚙️ 관리자 메뉴</h3>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px">
+      <button class="btn" onclick="adminExportCSV()" style="padding:12px;font-size:13px;text-align:left">
+        📥 CSV 내보내기
+      </button>
+      <button class="btn" onclick="adminChangePw()" style="padding:12px;font-size:13px;text-align:left">
+        🔑 비밀번호 변경
+      </button>
+    </div>
+    <div class="modal-actions" style="margin-top:16px">
+      <button class="btn" onclick="closeAdminMenu()">닫기</button>
+    </div>
+  </div>
+</div>
+
 <!-- Password Change Modal -->
 <div class="modal-bg" id="modal-pw">
   <div class="modal" style="width:320px">
@@ -252,8 +286,7 @@
   <div class="sync-badge" id="sync-badge"><div class="sync-dot"></div> 실시간 연동</div>
   <div class="toolbar">
     <button class="btn primary" onclick="openAddModal()">+ 재료 추가</button>
-    <button class="btn" onclick="exportCSV()">CSV 내보내기</button>
-    <button class="btn" onclick="openPwModal()" style="border-color:#8b90b0;color:#8b90b0">🔑</button>
+    <button class="btn" onclick="openAdminModal()" style="border-color:#8b90b0;color:#8b90b0">⚙️ 관리자</button>
     <button class="btn danger" id="del-btn" style="display:none" onclick="deleteSelected()">선택 삭제</button>
   </div>
 </header>
@@ -398,6 +431,41 @@ window.openPwModal = function() {
 }
 window.closePwModal = function() { document.getElementById('modal-pw').classList.remove('open'); }
 document.getElementById('modal-pw').addEventListener('click', e => { if(e.target===e.currentTarget) closePwModal(); });
+
+// --- Admin ---
+window.openAdminModal = function() {
+  document.getElementById('admin-pw-input').value = '';
+  document.getElementById('admin-auth-err').textContent = '';
+  document.getElementById('modal-admin-auth').classList.add('open');
+  setTimeout(() => document.getElementById('admin-pw-input').focus(), 100);
+}
+window.closeAdminAuth = function() { document.getElementById('modal-admin-auth').classList.remove('open'); }
+document.getElementById('modal-admin-auth').addEventListener('click', e => { if(e.target===e.currentTarget) closeAdminAuth(); });
+
+window.tryAdminAuth = function() {
+  const input = document.getElementById('admin-pw-input').value;
+  const err = document.getElementById('admin-auth-err');
+  if (input === currentPassword) {
+    closeAdminAuth();
+    openAdminMenu();
+  } else {
+    err.textContent = '비밀번호가 틀렸습니다';
+    document.getElementById('admin-pw-input').value = '';
+  }
+}
+
+window.openAdminMenu = function() { document.getElementById('modal-admin-menu').classList.add('open'); }
+window.closeAdminMenu = function() { document.getElementById('modal-admin-menu').classList.remove('open'); }
+document.getElementById('modal-admin-menu').addEventListener('click', e => { if(e.target===e.currentTarget) closeAdminMenu(); });
+
+window.adminExportCSV = function() {
+  closeAdminMenu();
+  exportCSV();
+}
+window.adminChangePw = function() {
+  closeAdminMenu();
+  openPwModal();
+}
 
 window.changePassword = function() {
   const cur = document.getElementById('pw-current').value;
