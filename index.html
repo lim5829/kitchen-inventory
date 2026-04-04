@@ -178,6 +178,32 @@
   .sel-info { color: var(--accent2); font-weight: 500; }
   .spacer { flex: 1; }
 
+  /* Login screen */
+  .login-screen {
+    position: fixed; inset: 0; background: var(--bg);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    z-index: 1000; gap: 8px; transition: opacity 0.3s;
+  }
+  .login-screen.hidden { display: none; }
+  .login-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 32px 28px; width: 320px; max-width: 92vw;
+    display: flex; flex-direction: column; gap: 14px; align-items: center;
+  }
+  .login-logo { font-size: 26px; font-weight: 700; }
+  .login-logo span { color: var(--accent); }
+  .login-sub { font-size: 13px; color: var(--text2); }
+  .login-input {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 14px; color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif; font-size: 18px; outline: none;
+    text-align: center; letter-spacing: 6px;
+  }
+  .login-input:focus { border-color: var(--accent); }
+  .login-input.shake { border-color: var(--danger); animation: shake 0.3s; }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-8px)} 75%{transform:translateX(8px)} }
+  .login-err { font-size: 12px; color: var(--danger); min-height: 16px; text-align: center; }
+
   .toast {
     position: fixed; bottom: 60px; right: 20px;
     background: var(--surface2); border: 1px solid var(--accent); color: var(--accent);
@@ -188,6 +214,33 @@
 </style>
 </head>
 <body>
+
+<!-- Login Screen -->
+<div class="login-screen" id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">☕ <span>카페달파도</span></div>
+    <div class="login-sub">재고관리 시스템</div>
+    <input class="login-input" type="password" id="login-pw" placeholder="••••" maxlength="20"
+      onkeydown="if(event.key==='Enter') tryLogin()">
+    <button class="btn primary" style="width:100%;padding:10px" onclick="tryLogin()">입장</button>
+    <div class="login-err" id="login-err"></div>
+  </div>
+</div>
+
+<!-- Password Change Modal -->
+<div class="modal-bg" id="modal-pw">
+  <div class="modal" style="width:320px">
+    <h3>🔑 비밀번호 변경</h3>
+    <label>현재 비밀번호</label><input type="password" id="pw-current" placeholder="현재 비밀번호">
+    <label>새 비밀번호</label><input type="password" id="pw-new" placeholder="새 비밀번호">
+    <label>새 비밀번호 확인</label><input type="password" id="pw-confirm" placeholder="다시 입력">
+    <div class="login-err" id="pw-err" style="margin-top:-6px"></div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closePwModal()">취소</button>
+      <button class="btn primary" onclick="changePassword()">변경</button>
+    </div>
+  </div>
+</div>
 
 <div class="loading" id="loading">
   <div class="spinner"></div>
@@ -200,6 +253,7 @@
   <div class="toolbar">
     <button class="btn primary" onclick="openAddModal()">+ 재료 추가</button>
     <button class="btn" onclick="exportCSV()">CSV 내보내기</button>
+    <button class="btn" onclick="openPwModal()" style="border-color:#8b90b0;color:#8b90b0">🔑</button>
     <button class="btn danger" id="del-btn" style="display:none" onclick="deleteSelected()">선택 삭제</button>
   </div>
 </header>
@@ -301,6 +355,7 @@ const app = initializeApp({
 const db = getDatabase(app);
 const itemsRef = ref(db, 'inventory');
 const catsRef = ref(db, 'categories');
+const pwRef = ref(db, 'config/password');
 
 let items = {};
 let categories = [];
@@ -310,6 +365,53 @@ let selected = new Set();
 let firstLoad = true;
 let firstCatLoad = true;
 let dragSrcIdx = null;
+let currentPassword = null;
+
+// --- Login ---
+const DEFAULT_PW = '1234';
+
+onValue(pwRef, (snap) => {
+  currentPassword = snap.exists() ? snap.val() : DEFAULT_PW;
+  if (!snap.exists()) set(pwRef, DEFAULT_PW);
+}, { onlyOnce: true });
+
+window.tryLogin = function() {
+  const input = document.getElementById('login-pw').value;
+  const err = document.getElementById('login-err');
+  if (input === currentPassword) {
+    document.getElementById('login-screen').classList.add('hidden');
+    err.textContent = '';
+  } else {
+    err.textContent = '비밀번호가 틀렸습니다';
+    const inp = document.getElementById('login-pw');
+    inp.classList.add('shake');
+    inp.value = '';
+    setTimeout(() => inp.classList.remove('shake'), 400);
+  }
+}
+
+window.openPwModal = function() {
+  ['pw-current','pw-new','pw-confirm'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('pw-err').textContent = '';
+  document.getElementById('modal-pw').classList.add('open');
+  document.getElementById('pw-current').focus();
+}
+window.closePwModal = function() { document.getElementById('modal-pw').classList.remove('open'); }
+document.getElementById('modal-pw').addEventListener('click', e => { if(e.target===e.currentTarget) closePwModal(); });
+
+window.changePassword = function() {
+  const cur = document.getElementById('pw-current').value;
+  const nw = document.getElementById('pw-new').value;
+  const cf = document.getElementById('pw-confirm').value;
+  const err = document.getElementById('pw-err');
+  if (cur !== currentPassword) { err.textContent = '현재 비밀번호가 틀렸습니다'; return; }
+  if (!nw) { err.textContent = '새 비밀번호를 입력해주세요'; return; }
+  if (nw !== cf) { err.textContent = '비밀번호가 일치하지 않습니다'; return; }
+  set(pwRef, nw);
+  currentPassword = nw;
+  closePwModal();
+  showToast('🔑 비밀번호가 변경되었습니다');
+}
 
 const DEFAULT_CATS = [
   {emoji:'☕', name:'원두/커피', color:'#f59e0b'},
