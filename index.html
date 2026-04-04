@@ -230,9 +230,6 @@
         <th onclick="sortBy('quantity')">현재 수량</th>
         <th onclick="sortBy('min')">최소 수량</th>
         <th>상태</th>
-        <th onclick="sortBy('unit')">단위</th>
-        <th onclick="sortBy('location')">보관 위치</th>
-        <th onclick="sortBy('expiry')">유통기한</th>
         <th onclick="sortBy('memo')">메모</th>
       </tr>
     </thead>
@@ -248,9 +245,6 @@
     <label>카테고리</label><select id="m-cat"></select>
     <label>현재 수량</label><input type="number" id="m-qty" placeholder="0" min="0">
     <label>최소 수량 (부족 알림 기준)</label><input type="number" id="m-min" placeholder="0" min="0">
-    <label>단위</label><input type="text" id="m-unit" placeholder="예: g, ml, 개, 봉지">
-    <label>보관 위치</label><input type="text" id="m-loc" placeholder="예: 냉장고, 창고, 바 위">
-    <label>유통기한</label><input type="date" id="m-exp">
     <label>메모</label><input type="text" id="m-memo" placeholder="자유롭게 입력...">
     <div class="modal-actions">
       <button class="btn" onclick="closeAddModal()">취소</button>
@@ -440,9 +434,6 @@ window.renderTable = function() {
       </div></td>
       <td><div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="min" onblur="saveCell(this)">${item.min}</div></td>
       <td class="cell-inner">${status}</td>
-      <td><div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="unit" onblur="saveCell(this)">${esc(item.unit)}</div></td>
-      <td><div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="location" onblur="saveCell(this)">${esc(item.location)}</div></td>
-      <td><div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="expiry" onblur="saveCell(this)" ${exp.color?`style="color:${exp.color}"`:''} >${exp.label}</div></td>
       <td><div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="memo" onblur="saveCell(this)">${esc(item.memo)}</div></td>`;
     tbody.appendChild(tr);
   });
@@ -589,19 +580,16 @@ window.addItem = function() {
     name, category:document.getElementById('m-cat').value,
     quantity:+document.getElementById('m-qty').value||0,
     min:+document.getElementById('m-min').value||0,
-    unit:document.getElementById('m-unit').value.trim()||'개',
-    location:document.getElementById('m-loc').value.trim(),
-    expiry:document.getElementById('m-exp').value,
     memo:document.getElementById('m-memo').value.trim()
   });
   closeAddModal();
-  ['m-name','m-qty','m-min','m-unit','m-loc','m-exp','m-memo'].forEach(id=>document.getElementById(id).value='');
+  ['m-name','m-qty','m-min','m-memo'].forEach(id=>document.getElementById(id).value='');
   showToast('✅ 재료가 추가되었습니다');
 }
 
 window.exportCSV = function() {
-  const h=['재료명','카테고리','현재수량','최소수량','단위','보관위치','유통기한','메모'];
-  const rows=Object.values(items).map(i=>[i.name,i.category,i.quantity,i.min,i.unit,i.location,i.expiry,i.memo].map(v=>`"${v||''}"`).join(','));
+  const h=['재료명','카테고리','현재수량','최소수량','메모'];
+  const rows=Object.values(items).map(i=>[i.name,i.category,i.quantity,i.min,i.memo].map(v=>`"${v||''}"`).join(','));
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob(['\uFEFF'+[h.join(','),...rows].join('\n')],{type:'text/csv;charset=utf-8'}));
   a.download='달파도재고_'+new Date().toISOString().slice(0,10)+'.csv'; a.click();
