@@ -105,10 +105,14 @@
 
   .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; }
 
-  .stock-bar-wrap { display: flex; align-items: center; gap: 8px; padding: 8px 12px; }
-  .stock-bar { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; max-width: 80px; }
-  .stock-fill { height: 100%; border-radius: 2px; transition: width 0.3s; }
-  .stock-num { font-family: 'DM Mono', monospace; font-size: 12px; min-width: 60px; text-align: right; }
+  .qty-wrap { display: flex; align-items: center; gap: 4px; padding: 6px 10px; }
+  .qty-btn {
+    width: 24px; height: 24px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text); cursor: pointer; font-size: 15px; line-height: 1;
+    display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0;
+  }
+  .qty-btn:hover { border-color: var(--accent); color: var(--accent); background: #2a1e00; }
+  .qty-num { font-family: 'DM Mono', monospace; font-size: 13px; min-width: 44px; text-align: center; font-weight: 500; cursor: text; outline: none; }
 
   .row-check { padding: 8px 12px; text-align: center; }
   input[type=checkbox] { accent-color: var(--accent); width: 14px; height: 14px; cursor: pointer; }
@@ -427,8 +431,7 @@ window.renderTable = function() {
   const tbody = document.getElementById('table-body');
   tbody.innerHTML = '';
   data.forEach(item => {
-    const pct = item.min>0 ? Math.min(100,(item.quantity/item.min)*50) : (item.quantity>0?100:0);
-    const barColor = item.quantity===0?'#f87171':item.quantity<item.min?'#fb923c':'#4ade80';
+    const qtyColor = item.quantity===0?'#f87171':item.quantity<item.min?'#fb923c':'#4ade80';
     const rowCls = (item.quantity===0?'out-stock':item.quantity<item.min?'low-stock':'') + (selected.has(item.fbKey)?' selected':'');
     const status = item.quantity===0
       ? '<span class="status status-out">없음</span>'
@@ -447,9 +450,10 @@ window.renderTable = function() {
       <td><div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="name" onblur="saveCell(this)">${esc(item.name)}</div></td>
       <td><div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="category" onblur="saveCell(this)">
         <span class="badge" style="background:${cs.bg};color:${cs.color}">${emoji} ${esc(item.category)}</span></div></td>
-      <td><div class="stock-bar-wrap">
-        <div class="stock-bar"><div class="stock-fill" style="width:${pct}%;background:${barColor}"></div></div>
-        <div class="editable stock-num" contenteditable data-fbkey="${item.fbKey}" data-field="quantity" onblur="saveCell(this)" style="color:${barColor}">${item.quantity}</div>
+      <td><div class="qty-wrap">
+        <button class="qty-btn" onclick="adjustQty('${item.fbKey}',-1)">−</button>
+        <div class="qty-num editable" contenteditable data-fbkey="${item.fbKey}" data-field="quantity" onblur="saveCell(this)" style="color:${qtyColor}">${item.quantity}</div>
+        <button class="qty-btn" onclick="adjustQty('${item.fbKey}',1)">+</button>
       </div></td>
       <td><div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="min" onblur="saveCell(this)">${item.min}</div></td>
       <td class="cell-inner">${status}</td>
@@ -548,6 +552,13 @@ window.addCategory = function() {
   document.getElementById('new-cat-name').value = '';
   renderCatList();
   showToast('✅ 카테고리 추가됨');
+}
+
+window.adjustQty = function(fbKey, delta) {
+  const item = items[fbKey];
+  if (!item) return;
+  const newVal = Math.max(0, (+item.quantity || 0) + delta);
+  update(ref(db, `inventory/${fbKey}`), {quantity: newVal});
 }
 
 window.saveCell = function(el) {
