@@ -251,8 +251,11 @@
       <button class="btn" onclick="adminExportCSV()" style="padding:12px;font-size:13px;text-align:left">
         📥 CSV 내보내기
       </button>
-      <button class="btn" onclick="adminChangePw()" style="padding:12px;font-size:13px;text-align:left">
-        🔑 비밀번호 변경
+      <button class="btn" onclick="adminChangeAdminPw()" style="padding:12px;font-size:13px;text-align:left">
+        🔑 관리자 비밀번호 변경
+      </button>
+      <button class="btn" onclick="adminChangeStaffPw()" style="padding:12px;font-size:13px;text-align:left">
+        👤 직원 비밀번호 변경
       </button>
     </div>
     <div class="modal-actions" style="margin-top:16px">
@@ -264,8 +267,9 @@
 <!-- Password Change Modal -->
 <div class="modal-bg" id="modal-pw">
   <div class="modal" style="width:320px">
-    <h3>🔑 비밀번호 변경</h3>
-    <label>현재 비밀번호</label><input type="password" id="pw-current" placeholder="현재 비밀번호">
+    <h3 id="pw-modal-title">🔑 비밀번호 변경</h3>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:4px" id="pw-modal-desc"></p>
+    <div id="pw-current-row"><label>현재 비밀번호</label><input type="password" id="pw-current" placeholder="현재 비밀번호"></div>
     <label>새 비밀번호</label><input type="password" id="pw-new" placeholder="새 비밀번호">
     <label>새 비밀번호 확인</label><input type="password" id="pw-confirm" placeholder="다시 입력">
     <div class="login-err" id="pw-err" style="margin-top:-6px"></div>
@@ -388,7 +392,8 @@ const app = initializeApp({
 const db = getDatabase(app);
 const itemsRef = ref(db, 'inventory');
 const catsRef = ref(db, 'categories');
-const pwRef = ref(db, 'config/password');
+const staffPwRef = ref(db, 'config/staffPassword');
+const adminPwRef = ref(db, 'config/adminPassword');
 
 let items = {};
 let categories = [];
@@ -398,20 +403,24 @@ let selected = new Set();
 let firstLoad = true;
 let firstCatLoad = true;
 let dragSrcIdx = null;
-let currentPassword = null;
+let staffPassword = null;
+let adminPassword = null;
 
 // --- Login ---
-const DEFAULT_PW = '1234';
+onValue(staffPwRef, (snap) => {
+  staffPassword = snap.exists() ? snap.val() : '1234';
+  if (!snap.exists()) set(staffPwRef, '1234');
+}, { onlyOnce: true });
 
-onValue(pwRef, (snap) => {
-  currentPassword = snap.exists() ? snap.val() : DEFAULT_PW;
-  if (!snap.exists()) set(pwRef, DEFAULT_PW);
+onValue(adminPwRef, (snap) => {
+  adminPassword = snap.exists() ? snap.val() : '0000';
+  if (!snap.exists()) set(adminPwRef, '0000');
 }, { onlyOnce: true });
 
 window.tryLogin = function() {
   const input = document.getElementById('login-pw').value;
   const err = document.getElementById('login-err');
-  if (input === currentPassword) {
+  if (input === staffPassword || input === adminPassword) {
     document.getElementById('login-screen').classList.add('hidden');
     err.textContent = '';
   } else {
@@ -423,11 +432,28 @@ window.tryLogin = function() {
   }
 }
 
-window.openPwModal = function() {
+let pwChangeMode = 'self'; // 'self' | 'staff' | 'admin'
+
+window.openPwModal = function(mode = 'self') {
+  pwChangeMode = mode;
   ['pw-current','pw-new','pw-confirm'].forEach(id => document.getElementById(id).value='');
   document.getElementById('pw-err').textContent = '';
+  const curRow = document.getElementById('pw-current-row');
+  if (mode === 'staff') {
+    document.getElementById('pw-modal-title').textContent = '👤 직원 비밀번호 변경';
+    document.getElementById('pw-modal-desc').textContent = '관리자 권한으로 직원 비밀번호를 변경합니다';
+    curRow.style.display = 'none';
+  } else if (mode === 'admin') {
+    document.getElementById('pw-modal-title').textContent = '🔑 관리자 비밀번호 변경';
+    document.getElementById('pw-modal-desc').textContent = '현재 관리자 비밀번호를 입력하세요';
+    curRow.style.display = '';
+  } else {
+    document.getElementById('pw-modal-title').textContent = '🔑 비밀번호 변경';
+    document.getElementById('pw-modal-desc').textContent = '현재 비밀번호를 입력하세요';
+    curRow.style.display = '';
+  }
   document.getElementById('modal-pw').classList.add('open');
-  document.getElementById('pw-current').focus();
+  setTimeout(() => document.getElementById(mode === 'staff' ? 'pw-new' : 'pw-current').focus(), 100);
 }
 window.closePwModal = function() { document.getElementById('modal-pw').classList.remove('open'); }
 document.getElementById('modal-pw').addEventListener('click', e => { if(e.target===e.currentTarget) closePwModal(); });
@@ -445,11 +471,11 @@ document.getElementById('modal-admin-auth').addEventListener('click', e => { if(
 window.tryAdminAuth = function() {
   const input = document.getElementById('admin-pw-input').value;
   const err = document.getElementById('admin-auth-err');
-  if (input === currentPassword) {
+  if (input === adminPassword) {
     closeAdminAuth();
     openAdminMenu();
   } else {
-    err.textContent = '비밀번호가 틀렸습니다';
+    err.textContent = '관리자 비밀번호가 틀렸습니다';
     document.getElementById('admin-pw-input').value = '';
   }
 }
@@ -458,27 +484,32 @@ window.openAdminMenu = function() { document.getElementById('modal-admin-menu').
 window.closeAdminMenu = function() { document.getElementById('modal-admin-menu').classList.remove('open'); }
 document.getElementById('modal-admin-menu').addEventListener('click', e => { if(e.target===e.currentTarget) closeAdminMenu(); });
 
-window.adminExportCSV = function() {
-  closeAdminMenu();
-  exportCSV();
-}
-window.adminChangePw = function() {
-  closeAdminMenu();
-  openPwModal();
-}
+window.adminExportCSV = function() { closeAdminMenu(); exportCSV(); }
+window.adminChangeAdminPw = function() { closeAdminMenu(); openPwModal('admin'); }
+window.adminChangeStaffPw = function() { closeAdminMenu(); openPwModal('staff'); }
 
 window.changePassword = function() {
   const cur = document.getElementById('pw-current').value;
   const nw = document.getElementById('pw-new').value;
   const cf = document.getElementById('pw-confirm').value;
   const err = document.getElementById('pw-err');
-  if (cur !== currentPassword) { err.textContent = '현재 비밀번호가 틀렸습니다'; return; }
   if (!nw) { err.textContent = '새 비밀번호를 입력해주세요'; return; }
   if (nw !== cf) { err.textContent = '비밀번호가 일치하지 않습니다'; return; }
-  set(pwRef, nw);
-  currentPassword = nw;
-  closePwModal();
-  showToast('🔑 비밀번호가 변경되었습니다');
+
+  if (pwChangeMode === 'staff') {
+    // 관리자가 직원 비번 변경 (현재 비번 확인 불필요)
+    set(staffPwRef, nw); staffPassword = nw;
+    closePwModal(); showToast('👤 직원 비밀번호가 변경되었습니다');
+  } else if (pwChangeMode === 'admin') {
+    if (cur !== adminPassword) { err.textContent = '현재 관리자 비밀번호가 틀렸습니다'; return; }
+    set(adminPwRef, nw); adminPassword = nw;
+    closePwModal(); showToast('🔑 관리자 비밀번호가 변경되었습니다');
+  } else {
+    if (cur !== staffPassword && cur !== adminPassword) { err.textContent = '현재 비밀번호가 틀렸습니다'; return; }
+    if (cur === adminPassword) { set(adminPwRef, nw); adminPassword = nw; showToast('🔑 관리자 비밀번호가 변경되었습니다'); }
+    else { set(staffPwRef, nw); staffPassword = nw; showToast('🔑 직원 비밀번호가 변경되었습니다'); }
+    closePwModal();
+  }
 }
 
 const DEFAULT_CATS = [
