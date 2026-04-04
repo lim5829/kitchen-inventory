@@ -764,9 +764,17 @@ function updateSelUI() {
   document.getElementById('del-btn').style.display=n?'':'none';
 }
 window.deleteSelected = function() {
-  if(!selected.size||!confirm(selected.size+'개 항목을 삭제할까요?')) return;
-  selected.forEach(k=>remove(ref(db,`inventory/${k}`)));
-  selected.clear(); showToast('🗑️ 삭제 완료');
+  if (!selected.size) return;
+  // 관리자 비밀번호 확인
+  const pw = prompt(`🗑️ ${selected.size}개 항목을 삭제합니다.\n관리자 비밀번호를 입력하세요:`);
+  if (pw === null) return; // 취소
+  if (pw !== adminPassword) {
+    showToast('❌ 관리자 비밀번호가 틀렸습니다');
+    return;
+  }
+  selected.forEach(k => remove(ref(db, `inventory/${k}`)));
+  selected.clear();
+  showToast('🗑️ 삭제 완료');
 }
 
 window.openAddModal = function() { document.getElementById('modal-add').classList.add('open'); document.getElementById('m-name').focus(); }
