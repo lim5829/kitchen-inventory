@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🥬 주방 재고 관리</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --surface2: #22263a;
+    --border: #2e3248; --accent: #4ade80; --accent2: #22d3ee;
+    --warn: #fb923c; --danger: #f87171;
+    --text: #e8eaf6; --text2: #8b90b0;
+    --row-hover: #1e2235; --selected: #1a2e1a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  header {
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 14px 20px; display: flex; align-items: center; gap: 16px;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .logo { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .logo span { color: var(--accent); }
+  .sync-badge {
+    font-size: 11px; padding: 3px 10px; border-radius: 10px;
+    background: #0d2a0d; color: var(--accent); border: 1px solid var(--accent);
+    display: flex; align-items: center; gap: 5px;
+  }
+  .sync-badge.offline { background: #2a0a0a; color: var(--danger); border-color: var(--danger); }
+  .sync-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .toolbar { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+  .btn {
+    font-family: 'Noto Sans KR', sans-serif; font-size: 12px; font-weight: 500;
+    padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text); cursor: pointer; transition: all 0.15s; white-space: nowrap;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent); color: #0a1a0a; border-color: var(--accent); font-weight: 700; }
+  .btn.primary:hover { background: #6ee7a0; }
+  .btn.danger { border-color: var(--danger); color: var(--danger); }
+
+  .stats { display: flex; gap: 1px; background: var(--border); border-bottom: 1px solid var(--border); }
+  .stat { flex: 1; background: var(--surface); padding: 10px 20px; }
+  .stat-label { font-size: 10px; color: var(--text2); text-transform: uppercase; letter-spacing: 1px; }
+  .stat-value { font-family: 'DM Mono', monospace; font-size: 20px; font-weight: 500; }
+  .stat-value.green { color: var(--accent); }
+  .stat-value.orange { color: var(--warn); }
+  .stat-value.red { color: var(--danger); }
+  .stat-value.cyan { color: var(--accent2); }
+
+  .filterbar {
+    display: flex; gap: 10px; padding: 10px 20px;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    align-items: center; flex-wrap: wrap;
+  }
+  .search-wrap { position: relative; flex: 1; min-width: 160px; max-width: 300px; }
+  .search-wrap input {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 10px 6px 30px; color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif; font-size: 13px; outline: none;
+  }
+  .search-wrap input:focus { border-color: var(--accent); }
+  .search-icon { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: var(--text2); font-size: 13px; pointer-events: none; }
+  .filter-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip {
+    font-size: 11px; padding: 4px 10px; border-radius: 20px;
+    border: 1px solid var(--border); background: transparent; color: var(--text2);
+    cursor: pointer; transition: all 0.15s; font-family: 'Noto Sans KR', sans-serif;
+  }
+  .chip:hover, .chip.active { border-color: var(--accent); color: var(--accent); background: #0d1f0d; }
+
+  .table-wrap { overflow-x: auto; padding: 0 0 80px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 800px; }
+  thead th {
+    background: var(--surface); border-bottom: 2px solid var(--border);
+    padding: 10px 12px; text-align: left; font-size: 11px; font-weight: 500;
+    color: var(--text2); text-transform: uppercase; letter-spacing: 0.8px;
+    white-space: nowrap; user-select: none; cursor: pointer;
+    position: sticky; top: 53px; z-index: 10;
+  }
+  thead th:hover { color: var(--accent); }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.08s; }
+  tbody tr:hover { background: var(--row-hover); }
+  tbody tr.selected { background: var(--selected); }
+  tbody tr.low-stock td:first-child { border-left: 3px solid var(--warn); }
+  tbody tr.out-stock td:first-child { border-left: 3px solid var(--danger); }
+  td { padding: 0; vertical-align: middle; }
+  td.cell-inner { padding: 8px 12px; }
+
+  .editable {
+    padding: 8px 12px; min-height: 36px; cursor: text; outline: none;
+    transition: background 0.1s; border-right: 1px solid transparent; white-space: nowrap;
+  }
+  .editable:focus { background: #0d1f35; border-right: 1px solid var(--accent2); color: var(--accent2); }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; }
+  .badge-채소 { background: #0d2a0d; color: #6ee7a0; }
+  .badge-육류 { background: #2a0d0d; color: #fca5a5; }
+  .badge-유제품 { background: #1a1a2a; color: #a5b4fc; }
+  .badge-소스양념 { background: #2a1a00; color: #fcd34d; }
+  .badge-해산물 { background: #001a2a; color: #67e8f9; }
+  .badge-곡물 { background: #1a1a00; color: #fef08a; }
+  .badge-기타 { background: #1a1a1a; color: #d1d5db; }
+
+  .stock-bar-wrap { display: flex; align-items: center; gap: 8px; padding: 8px 12px; }
+  .stock-bar { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; max-width: 80px; }
+  .stock-fill { height: 100%; border-radius: 2px; transition: width 0.3s; }
+  .stock-num { font-family: 'DM Mono', monospace; font-size: 12px; min-width: 60px; text-align: right; }
+
+  .row-check { padding: 8px 12px; text-align: center; }
+  input[type=checkbox] { accent-color: var(--accent); width: 14px; height: 14px; cursor: pointer; }
+
+  .status { font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 600; }
+  .status-ok { background: #0d2a0d; color: var(--accent); }
+  .status-low { background: #2a1500; color: var(--warn); }
+  .status-out { background: #2a0a0a; color: var(--danger); }
+
+  .loading {
+    position: fixed; inset: 0; background: var(--bg);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 16px; z-index: 999; transition: opacity 0.4s;
+  }
+  .loading.hidden { opacity: 0; pointer-events: none; }
+  .spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { color: var(--text2); font-size: 14px; }
+
+  .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200; backdrop-filter: blur(4px); align-items: center; justify-content: center; }
+  .modal-bg.open { display: flex; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; width: 360px; max-width: 95vw; }
+  .modal h3 { margin-bottom: 16px; font-size: 15px; }
+  .modal label { font-size: 12px; color: var(--text2); display: block; margin-bottom: 4px; }
+  .modal input, .modal select {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 6px; padding: 8px 10px; color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif; font-size: 13px; outline: none; margin-bottom: 12px;
+  }
+  .modal input:focus, .modal select:focus { border-color: var(--accent); }
+  .modal select option { background: var(--surface2); }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+
+  .bottom-bar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--surface); border-top: 1px solid var(--border);
+    padding: 10px 20px; display: flex; align-items: center; gap: 12px;
+    font-size: 12px; color: var(--text2); z-index: 100;
+  }
+  .bottom-bar .sel-info { color: var(--accent2); font-weight: 500; }
+  .bottom-bar .spacer { flex: 1; }
+
+  .toast {
+    position: fixed; bottom: 60px; right: 20px;
+    background: var(--surface2); border: 1px solid var(--accent); color: var(--accent);
+    padding: 10px 16px; border-radius: 8px; font-size: 13px; font-weight: 500;
+    z-index: 300; transform: translateY(20px); opacity: 0; transition: all 0.25s; pointer-events: none;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="loading" id="loading">
+  <div class="spinner"></div>
+  <div class="loading-text">Firebase 연결 중...</div>
+</div>
+
+<header>
+  <div class="logo">🥬 <span>주방</span>재고</div>
+  <div class="sync-badge" id="sync-badge"><div class="sync-dot"></div> 실시간 연동</div>
+  <div class="toolbar">
+    <button class="btn primary" onclick="openAddModal()">+ 재료 추가</button>
+    <button class="btn" onclick="exportCSV()">CSV 내보내기</button>
+    <button class="btn danger" id="del-btn" style="display:none" onclick="deleteSelected()">선택 삭제</button>
+  </div>
+</header>
+
+<div class="stats">
+  <div class="stat"><div class="stat-label">전체 품목</div><div class="stat-value cyan" id="s-total">-</div></div>
+  <div class="stat"><div class="stat-label">재고 정상</div><div class="stat-value green" id="s-ok">-</div></div>
+  <div class="stat"><div class="stat-label">부족 주의</div><div class="stat-value orange" id="s-low">-</div></div>
+  <div class="stat"><div class="stat-label">재고 없음</div><div class="stat-value red" id="s-out">-</div></div>
+</div>
+
+<div class="filterbar">
+  <div class="search-wrap">
+    <span class="search-icon">🔍</span>
+    <input type="text" placeholder="재료 검색..." id="search-input" oninput="renderTable()">
+  </div>
+  <div class="filter-chips">
+    <button class="chip active" onclick="setFilter('전체', this)">전체</button>
+    <button class="chip" onclick="setFilter('채소', this)">🥦 채소</button>
+    <button class="chip" onclick="setFilter('육류', this)">🥩 육류</button>
+    <button class="chip" onclick="setFilter('유제품', this)">🧀 유제품</button>
+    <button class="chip" onclick="setFilter('소스양념', this)">🧂 소스/양념</button>
+    <button class="chip" onclick="setFilter('해산물', this)">🐟 해산물</button>
+    <button class="chip" onclick="setFilter('곡물', this)">🌾 곡물</button>
+    <button class="chip" onclick="setFilter('기타', this)">📦 기타</button>
+  </div>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th style="width:40px"><input type="checkbox" id="check-all" onchange="toggleAll(this)"></th>
+        <th onclick="sortBy('name')">재료명</th>
+        <th onclick="sortBy('category')">카테고리</th>
+        <th onclick="sortBy('quantity')">현재 수량</th>
+        <th onclick="sortBy('min')">최소 수량</th>
+        <th>상태</th>
+        <th onclick="sortBy('unit')">단위</th>
+        <th onclick="sortBy('location')">보관 위치</th>
+        <th onclick="sortBy('expiry')">유통기한</th>
+        <th onclick="sortBy('memo')">메모</th>
+      </tr>
+    </thead>
+    <tbody id="table-body"></tbody>
+  </table>
+</div>
+
+<div class="modal-bg" id="modal">
+  <div class="modal">
+    <h3>➕ 재료 추가</h3>
+    <label>재료명</label><input type="text" id="m-name" placeholder="예: 당근">
+    <label>카테고리</label>
+    <select id="m-cat">
+      <option>채소</option><option>육류</option><option>유제품</option>
+      <option>소스양념</option><option>해산물</option><option>곡물</option><option>기타</option>
+    </select>
+    <label>현재 수량</label><input type="number" id="m-qty" placeholder="0" min="0">
+    <label>최소 수량 (부족 알림 기준)</label><input type="number" id="m-min" placeholder="0" min="0">
+    <label>단위</label><input type="text" id="m-unit" placeholder="예: g, ml, 개, 봉지">
+    <label>보관 위치</label><input type="text" id="m-loc" placeholder="예: 냉장고, 냉동고, 팬트리">
+    <label>유통기한</label><input type="date" id="m-exp">
+    <label>메모</label><input type="text" id="m-memo" placeholder="자유롭게 입력...">
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">취소</button>
+      <button class="btn primary" onclick="addItem()">추가</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="bottom-bar">
+  <span id="row-count">로딩 중...</span>
+  <span class="sel-info" id="sel-count" style="display:none"></span>
+  <span class="spacer"></span>
+  <span style="font-size:11px">변경사항이 모든 기기에 즉시 반영됩니다 ☁️</span>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, onValue, push, remove, update }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const app = initializeApp({
+  apiKey: "AIzaSyDAGS7E7a2QMorurLa9kseaBmeDB40Kxu8",
+  authDomain: "kitchen-inventory-d0a04.firebaseapp.com",
+  databaseURL: "https://kitchen-inventory-d0a04-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "kitchen-inventory-d0a04",
+  storageBucket: "kitchen-inventory-d0a04.firebasestorage.app",
+  messagingSenderId: "891824296078",
+  appId: "1:891824296078:web:d989839e0e0e92acb7f9df"
+});
+
+const db = getDatabase(app);
+const itemsRef = ref(db, 'inventory');
+
+let items = {};
+let filterCat = '전체';
+let sortKey = null, sortDir = 1;
+let selected = new Set();
+let firstLoad = true;
+
+// Realtime listener
+onValue(itemsRef, (snap) => {
+  items = snap.val() || {};
+  if (firstLoad) {
+    firstLoad = false;
+    document.getElementById('loading').classList.add('hidden');
+    // Seed if empty
+    if (!snap.exists()) seedData();
+  }
+  setSyncStatus(true);
+  renderTable();
+}, () => setSyncStatus(false));
+
+function seedData() {
+  [
+    {name:'당근', category:'채소', quantity:500, min:100, unit:'g', location:'냉장고', expiry:'2026-04-15', memo:''},
+    {name:'닭가슴살', category:'육류', quantity:200, min:300, unit:'g', location:'냉동고', expiry:'2026-04-20', memo:'냉동 보관'},
+    {name:'우유', category:'유제품', quantity:0, min:500, unit:'ml', location:'냉장고', expiry:'2026-04-08', memo:''},
+    {name:'간장', category:'소스양념', quantity:800, min:200, unit:'ml', location:'팬트리', expiry:'', memo:'진간장'},
+    {name:'계란', category:'기타', quantity:6, min:10, unit:'개', location:'냉장고', expiry:'2026-04-18', memo:''},
+    {name:'쌀', category:'곡물', quantity:3000, min:1000, unit:'g', location:'팬트리', expiry:'', memo:''},
+    {name:'연어', category:'해산물', quantity:250, min:0, unit:'g', location:'냉동고', expiry:'2026-04-30', memo:'생연어'},
+    {name:'버터', category:'유제품', quantity:50, min:50, unit:'g', location:'냉장고', expiry:'2026-05-01', memo:''},
+  ].forEach(item => push(itemsRef, item));
+}
+
+function setSyncStatus(ok) {
+  const b = document.getElementById('sync-badge');
+  b.className = 'sync-badge' + (ok ? '' : ' offline');
+  b.innerHTML = `<div class="sync-dot"></div> ${ok ? '실시간 연동' : '연결 끊김'}`;
+}
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function formatExpiry(d) {
+  if (!d) return {label:'', color:null};
+  const diff = Math.ceil((new Date(d) - new Date()) / 86400000);
+  if (diff < 0) return {label: d+' ⚠️', color:'#f87171'};
+  if (diff <= 3) return {label: d+` (D-${diff})`, color:'#fb923c'};
+  return {label: d, color: null};
+}
+
+window.renderTable = function() {
+  const q = document.getElementById('search-input').value.toLowerCase();
+  let data = Object.entries(items)
+    .map(([k,v]) => ({...v, fbKey:k}))
+    .filter(i => (filterCat==='전체' || i.category===filterCat)
+      && (!q || [i.name,i.memo,i.location].some(s=>(s||'').toLowerCase().includes(q))));
+  if (sortKey) data.sort((a,b) => {
+    let av=a[sortKey]||'', bv=b[sortKey]||'';
+    if (['quantity','min'].includes(sortKey)){av=+av;bv=+bv;}
+    return av<bv?-sortDir:av>bv?sortDir:0;
+  });
+
+  const tbody = document.getElementById('table-body');
+  tbody.innerHTML = '';
+  data.forEach(item => {
+    const pct = item.min>0 ? Math.min(100,(item.quantity/item.min)*50) : (item.quantity>0?100:0);
+    const color = item.quantity===0?'#f87171':item.quantity<item.min?'#fb923c':'#4ade80';
+    const rowCls = item.quantity===0?'out-stock':item.quantity<item.min?'low-stock':'';
+    const status = item.quantity===0?'<span class="status status-out">없음</span>'
+      :item.quantity<item.min?'<span class="status status-low">부족</span>'
+      :'<span class="status status-ok">정상</span>';
+    const exp = formatExpiry(item.expiry);
+    const tr = document.createElement('tr');
+    tr.className = rowCls + (selected.has(item.fbKey)?' selected':'');
+    tr.dataset.fbkey = item.fbKey;
+    tr.innerHTML = `
+      <td class="row-check"><input type="checkbox" ${selected.has(item.fbKey)?'checked':''} onchange="toggleRow('${item.fbKey}',this)"></td>
+      <td><div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="name" onblur="saveCell(this)">${esc(item.name)}</div></td>
+      <td><div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="category" onblur="saveCell(this)"><span class="badge badge-${item.category}">${esc(item.category)}</span></div></td>
+      <td><div class="stock-bar-wrap"><div class="stock-bar"><div class="stock-fill" style="width:${pct}%;background:${color}"></div></div>
+        <div class="editable stock-num" contenteditable data-fbkey="${item.fbKey}" data-field="quantity" onblur="saveCell(this)" style="color:${color}">${item.quantity}</div></div></td>
+      <td><div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="min" onblur="saveCell(this)">${item.min}</div></td>
+      <td class="cell-inner">${status}</td>
+      <td><div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="unit" onblur="saveCell(this)">${esc(item.unit)}</div></td>
+      <td><div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="location" onblur="saveCell(this)">${esc(item.location)}</div></td>
+      <td><div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="expiry" onblur="saveCell(this)" ${exp.color?`style="color:${exp.color}"`:''} >${exp.label}</div></td>
+      <td><div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="memo" onblur="saveCell(this)">${esc(item.memo)}</div></td>`;
+    tbody.appendChild(tr);
+  });
+
+  const all = Object.values(items);
+  document.getElementById('s-total').textContent = all.length;
+  document.getElementById('s-ok').textContent = all.filter(i=>i.quantity>0&&i.quantity>=i.min).length;
+  document.getElementById('s-low').textContent = all.filter(i=>i.quantity>0&&i.quantity<i.min).length;
+  document.getElementById('s-out').textContent = all.filter(i=>!i.quantity||i.quantity===0).length;
+  document.getElementById('row-count').textContent = data.length+'개 항목';
+  updateSelUI();
+}
+
+window.saveCell = function(el) {
+  const {fbkey, field} = el.dataset;
+  let val = el.innerText.trim();
+  if (['quantity','min'].includes(field)) val = isNaN(+val)?0:+val;
+  update(ref(db,`inventory/${fbkey}`), {[field]:val});
+}
+window.sortBy = function(k) { sortKey===k?sortDir*=-1:(sortKey=k,sortDir=1); renderTable(); }
+window.setFilter = function(cat,el) {
+  filterCat=cat;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active'); renderTable();
+}
+window.toggleRow = function(k,el) {
+  el.checked?selected.add(k):selected.delete(k);
+  document.querySelector(`tr[data-fbkey="${k}"]`).classList.toggle('selected',el.checked);
+  updateSelUI();
+}
+window.toggleAll = function(el) {
+  document.querySelectorAll('#table-body tr[data-fbkey]').forEach(r=>{
+    const k=r.dataset.fbkey, cb=r.querySelector('input[type=checkbox]');
+    el.checked?(selected.add(k),cb.checked=true,r.classList.add('selected'))
+              :(selected.delete(k),cb.checked=false,r.classList.remove('selected'));
+  }); updateSelUI();
+}
+function updateSelUI() {
+  const n=selected.size;
+  document.getElementById('sel-count').style.display=n?'':'none';
+  document.getElementById('sel-count').textContent=n+'개 선택됨';
+  document.getElementById('del-btn').style.display=n?'':'none';
+}
+window.deleteSelected = function() {
+  if(!selected.size||!confirm(selected.size+'개 항목을 삭제할까요?')) return;
+  selected.forEach(k=>remove(ref(db,`inventory/${k}`)));
+  selected.clear(); showToast('🗑️ 삭제 완료');
+}
+window.openAddModal = function() { document.getElementById('modal').classList.add('open'); document.getElementById('m-name').focus(); }
+window.closeModal = function() { document.getElementById('modal').classList.remove('open'); }
+document.getElementById('modal').addEventListener('click',e=>{ if(e.target===e.currentTarget) closeModal(); });
+
+window.addItem = function() {
+  const name=document.getElementById('m-name').value.trim();
+  if(!name){document.getElementById('m-name').focus();return;}
+  push(itemsRef,{
+    name, category:document.getElementById('m-cat').value,
+    quantity:+document.getElementById('m-qty').value||0,
+    min:+document.getElementById('m-min').value||0,
+    unit:document.getElementById('m-unit').value.trim()||'개',
+    location:document.getElementById('m-loc').value.trim(),
+    expiry:document.getElementById('m-exp').value,
+    memo:document.getElementById('m-memo').value.trim()
+  });
+  closeModal();
+  ['m-name','m-qty','m-min','m-unit','m-loc','m-exp','m-memo'].forEach(id=>document.getElementById(id).value='');
+  showToast('✅ 재료가 추가되었습니다');
+}
+window.exportCSV = function() {
+  const h=['재료명','카테고리','현재수량','최소수량','단위','보관위치','유통기한','메모'];
+  const rows=Object.values(items).map(i=>[i.name,i.category,i.quantity,i.min,i.unit,i.location,i.expiry,i.memo].map(v=>`"${v||''}"`).join(','));
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob(['\uFEFF'+[h.join(','),...rows].join('\n')],{type:'text/csv;charset=utf-8'}));
+  a.download='주방재고_'+new Date().toISOString().slice(0,10)+'.csv'; a.click();
+  showToast('📥 CSV 내보내기 완료');
+}
+window.showToast = function(msg) {
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape') closeModal();
+  if((e.ctrlKey||e.metaKey)&&e.key==='Enter'&&document.getElementById('modal').classList.contains('open')) addItem();
+});
+</script>
+</body>
+</html>
