@@ -618,8 +618,9 @@ window.renderTable = function() {
   const tbody = document.getElementById('table-body');
   tbody.innerHTML = '';
   data.forEach(item => {
-    const qtyColor = item.quantity===0 ? '#f87171' : '#4ade80';
-    const rowCls = (item.quantity===0 ? 'out-stock' : '') + (selected.has(item.fbKey)?' selected':'');
+    const qty = +item.quantity || 0;
+    const qtyColor = qty <= 4 ? '#f87171' : '#4ade80';
+    const rowCls = (qty <= 4 ? 'out-stock' : '') + (selected.has(item.fbKey) ? ' selected' : '');
     const status = item.quantity===0
       ? '<span class="status status-out">없음</span>'
       : item.quantity<item.min
@@ -900,11 +901,13 @@ function updateSelUI() {
   const allShipping = selectedItems.length > 0 && selectedItems.every(i => i.delivery === 'shipping');
   const allWaiting = selectedItems.length > 0 && selectedItems.every(i => i.delivery === 'waiting');
 
-  // 아무 상태도 없을 때: 주문완료 + 대기 버튼
+  // 아무 상태 없을 때: 주문완료 + 대기
   document.getElementById('delivery-btn').style.display = (n > 0 && noneStatus) ? '' : 'none';
   document.getElementById('waiting-btn').style.display = (n > 0 && noneStatus) ? '' : 'none';
-  // 주문완료 상태일 때: 배송완료 버튼
-  document.getElementById('complete-btn').style.display = (n > 0 && (allShipping || allWaiting)) ? '' : 'none';
+  // 주문완료 상태일 때만: 배송완료
+  document.getElementById('complete-btn').style.display = (n > 0 && allShipping) ? '' : 'none';
+  // 대기 상태일 때: 주문완료
+  document.getElementById('delivery-btn').style.display = (n > 0 && (noneStatus || allWaiting)) ? '' : 'none';
 }
 
 window.startDelivery = function() {
