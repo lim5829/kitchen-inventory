@@ -675,34 +675,12 @@ window.renderTable = function() {
       <td class="cell-inner">${status}</td>
       <td><div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="memo" onblur="saveCell(this)">${esc(item.memo)}</div></td>`;
 
-    // Drag events
-    let dragSrcRow = null;
-    tr.addEventListener('dragstart', e => {
-      dragSrcRow = tr;
-      setTimeout(() => tr.classList.add('dragging-row'), 0);
-      e.dataTransfer.effectAllowed = 'move';
-    });
-    tr.addEventListener('dragend', () => tr.classList.remove('dragging-row'));
-    tr.addEventListener('dragover', e => { e.preventDefault(); tr.classList.add('drag-over-row'); });
-    tr.addEventListener('dragleave', () => tr.classList.remove('drag-over-row'));
-    tr.addEventListener('drop', e => {
+    // Touch drag via handle
+    const handle = tr.querySelector('.drag-handle');
+    handle.addEventListener('touchstart', e => {
       e.preventDefault();
-      tr.classList.remove('drag-over-row');
-      if (!dragSrcRow || dragSrcRow === tr) return;
-      const srcKey = dragSrcRow.dataset.fbkey;
-      const tgtKey = tr.dataset.fbkey;
-      // Get current order from DOM
-      const rows = [...document.querySelectorAll('#table-body tr[data-fbkey]')];
-      const order = rows.map(r => r.dataset.fbkey);
-      const srcIdx = order.indexOf(srcKey);
-      const tgtIdx = order.indexOf(tgtKey);
-      order.splice(srcIdx, 1);
-      order.splice(tgtIdx, 0, srcKey);
-      // Save order to Firebase
-      const orderObj = {};
-      order.forEach((k, i) => { orderObj[k] = i; });
-      update(ref(db, 'itemOrder'), orderObj);
-    });
+      initTouchDrag(tr, e);
+    }, {passive: false});
 
     tbody.appendChild(tr);
   });
@@ -802,6 +780,64 @@ window.adjustQty = function(fbKey, delta) {
   if (!item) return;
   const newVal = Math.max(0, (+item.quantity || 0) + delta);
   update(ref(db, `inventory/${fbKey}`), {quantity: newVal});
+}
+
+// --- Touch drag for row reordering ---
+function initTouchDrag(srcRow, e) {
+  const tbody = document.getElementById('table-body');
+  srcRow.classList.add('dragging-row');
+
+  // 유령 이미지 생성
+  const ghost = srcRow.cloneNode(true);
+  ghost.style.cssText = `position:fixed;left:0;top:0;width:${srcRow.offsetWidth}px;opacity:0.7;
+    background:var(--surface2);pointer-events:none;z-index:9999;border:1px solid var(--accent);border-radius:4px;`;
+  document.body.appendChild(ghost);
+
+  let lastOver = null;
+
+  function onMove(e) {
+    const touch = e.touches[0];
+    ghost.style.transform = `translate(${touch.clientX - 20}px, ${touch.clientY - 20}px)`;
+
+    // 어떤 행 위에 있는지 감지
+    ghost.style.display = 'none';
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    ghost.style.display = '';
+    const targetRow = el?.closest('tr[data-fbkey]');
+
+    if (lastOver && lastOver !== targetRow) lastOver.classList.remove('drag-over-row');
+    if (targetRow && targetRow !== srcRow) {
+      targetRow.classList.add('drag-over-row');
+      lastOver = targetRow;
+    }
+  }
+
+  function onEnd() {
+    srcRow.classList.remove('dragging-row');
+    ghost.remove();
+    document.removeEventListener('touchmove', onMove);
+    document.removeEventListener('touchend', onEnd);
+
+    if (lastOver) {
+      lastOver.classList.remove('drag-over-row');
+      const srcKey = srcRow.dataset.fbkey;
+      const tgtKey = lastOver.dataset.fbkey;
+      if (srcKey !== tgtKey) {
+        const rows = [...tbody.querySelectorAll('tr[data-fbkey]')];
+        const order = rows.map(r => r.dataset.fbkey);
+        const srcIdx = order.indexOf(srcKey);
+        const tgtIdx = order.indexOf(tgtKey);
+        order.splice(srcIdx, 1);
+        order.splice(tgtIdx, 0, srcKey);
+        const orderObj = {};
+        order.forEach((k, i) => { orderObj[k] = i; });
+        update(ref(db, 'itemOrder'), orderObj);
+      }
+    }
+  }
+
+  document.addEventListener('touchmove', onMove, {passive: false});
+  document.addEventListener('touchend', onEnd);
 }
 
 window.saveCell = function(el) {
