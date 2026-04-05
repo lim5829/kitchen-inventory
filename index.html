@@ -121,6 +121,10 @@
   .status-low { background: #2a1500; color: var(--warn); }
   .status-out { background: #2a0a0a; color: var(--danger); }
 
+  .delivery-badge { font-size: 11px; padding: 3px 9px; border-radius: 10px; font-weight: 600; white-space: nowrap; }
+  .delivery-shipping { background: #1a1030; color: #a78bfa; border: 1px solid #a78bfa; }
+  .delivery-done { background: #0d2a0d; color: #4ade80; border: 1px solid #4ade80; }
+
   .loading {
     position: fixed; inset: 0; background: var(--bg);
     display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -290,6 +294,8 @@
   <div class="sync-badge" id="sync-badge"><div class="sync-dot"></div> 실시간 연동</div>
   <div class="toolbar">
     <button class="btn primary" onclick="openAddModal()">+ 재료 추가</button>
+    <button class="btn" id="delivery-btn" style="display:none;border-color:#a78bfa;color:#a78bfa" onclick="startDelivery()">🚚 배송시작</button>
+    <button class="btn" id="complete-btn" style="display:none;border-color:#4ade80;color:#4ade80" onclick="completeDelivery()">✅ 완료</button>
     <button class="btn" onclick="openAdminModal()" style="border-color:#8b90b0;color:#8b90b0">⚙️ 관리자</button>
     <button class="btn danger" id="del-btn" style="display:none" onclick="deleteSelected()">선택 삭제</button>
   </div>
@@ -322,6 +328,7 @@
         <th onclick="sortBy('min')">최소 수량</th>
         <th>상태</th>
         <th onclick="sortBy('memo')">메모</th>
+        <th onclick="sortBy('delivery')">배송</th>
       </tr>
     </thead>
     <tbody id="table-body"></tbody>
@@ -616,13 +623,19 @@ window.renderTable = function() {
       : item.quantity<item.min
         ? '<span class="status status-low">부족</span>'
         : '<span class="status status-ok">정상</span>';
-    const exp = formatExpiry(item.expiry);
     const cs = getCatStyle(item.category);
     const emoji = getCatEmoji(item.category);
+    const delivery = item.delivery || '';
+    const deliveryBadge = delivery === 'shipping'
+      ? '<span class="delivery-badge delivery-shipping">🚚 배송중</span>'
+      : delivery === 'done'
+        ? '<span class="delivery-badge delivery-done">✅ 완료</span>'
+        : '';
 
     const tr = document.createElement('tr');
     tr.className = rowCls;
     tr.dataset.fbkey = item.fbKey;
+    tr.dataset.delivery = delivery;
     tr.innerHTML = `
       <td class="row-check"><input type="checkbox" ${selected.has(item.fbKey)?'checked':''} onchange="toggleRow('${item.fbKey}',this)"></td>
       <td><div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="name" onblur="saveCell(this)">${esc(item.name)}</div></td>
@@ -635,7 +648,8 @@ window.renderTable = function() {
       </div></td>
       <td><div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="min" onblur="saveCell(this)">${item.min}</div></td>
       <td class="cell-inner">${status}</td>
-      <td><div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="memo" onblur="saveCell(this)">${esc(item.memo)}</div></td>`;
+      <td><div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="memo" onblur="saveCell(this)">${esc(item.memo)}</div></td>
+      <td class="cell-inner">${deliveryBadge}</td>`;
     tbody.appendChild(tr);
   });
 
@@ -758,10 +772,30 @@ window.toggleAll = function(el) {
   }); updateSelUI();
 }
 function updateSelUI() {
-  const n=selected.size;
-  document.getElementById('sel-count').style.display=n?'':'none';
-  document.getElementById('sel-count').textContent=n+'개 선택됨';
-  document.getElementById('del-btn').style.display=n?'':'none';
+  const n = selected.size;
+  document.getElementById('sel-count').style.display = n ? '' : 'none';
+  document.getElementById('sel-count').textContent = n + '개 선택됨';
+  document.getElementById('del-btn').style.display = n ? '' : 'none';
+
+  // 선택된 항목들의 배송 상태 확인
+  const selectedItems = [...selected].map(k => items[k]).filter(Boolean);
+  const allShipping = selectedItems.length > 0 && selectedItems.every(i => i.delivery === 'shipping');
+  const noneShipping = selectedItems.length > 0 && selectedItems.every(i => !i.delivery || i.delivery === '');
+
+  document.getElementById('delivery-btn').style.display = (n > 0 && noneShipping) ? '' : 'none';
+  document.getElementById('complete-btn').style.display = (n > 0 && allShipping) ? '' : 'none';
+}
+
+window.startDelivery = function() {
+  selected.forEach(k => update(ref(db, `inventory/${k}`), {delivery: 'shipping'}));
+  selected.clear();
+  showToast('🚚 배송시작으로 변경되었습니다');
+}
+
+window.completeDelivery = function() {
+  selected.forEach(k => update(ref(db, `inventory/${k}`), {delivery: '', quantity: 0}));
+  selected.clear();
+  showToast('✅ 배송완료 - 재고가 초기화되었습니다');
 }
 window.deleteSelected = function() {
   if (!selected.size) return;
