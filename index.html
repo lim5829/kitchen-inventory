@@ -299,8 +299,8 @@
   <div class="logo">☕ <span>카페달파도</span> 재고관리</div>
   <div class="sync-badge" id="sync-badge"><div class="sync-dot"></div> 실시간 연동</div>
   <div class="toolbar">
-    <button class="btn" id="delivery-btn" style="display:none;border-color:#a78bfa;color:#a78bfa" onclick="startDelivery()">🚚 배송시작</button>
-    <button class="btn" id="complete-btn" style="display:none;border-color:#4ade80;color:#4ade80" onclick="completeDelivery()">✅ 완료</button>
+    <button class="btn" id="delivery-btn" style="display:none;border-color:#a78bfa;color:#a78bfa" onclick="startDelivery()">📦 주문완료</button>
+    <button class="btn" id="complete-btn" style="display:none;border-color:#4ade80;color:#4ade80" onclick="completeDelivery()">🚚 배송완료</button>
     <button class="btn" onclick="openAdminModal()" style="border-color:#8b90b0;color:#8b90b0">⚙️ 관리자</button>
     <button class="btn danger" id="del-btn" style="display:none" onclick="deleteSelected()">선택 삭제</button>
   </div>
@@ -647,9 +647,9 @@ window.renderTable = function() {
     const emoji = getCatEmoji(item.category);
     const delivery = item.delivery || '';
     const deliveryBadge = delivery === 'shipping'
-      ? '<span class="delivery-badge delivery-shipping">🚚 배송중</span>'
+      ? '<span class="delivery-badge delivery-shipping">📦 주문완료</span>'
       : delivery === 'done'
-        ? '<span class="delivery-badge delivery-done">✅ 완료</span>'
+        ? '<span class="delivery-badge delivery-done">🚚 배송완료</span>'
         : '';
 
     const tr = document.createElement('tr');
@@ -931,7 +931,7 @@ function updateSelUI() {
 window.startDelivery = function() {
   selected.forEach(k => update(ref(db, `inventory/${k}`), {delivery: 'shipping'}));
   selected.clear();
-  showToast('🚚 배송시작으로 변경되었습니다');
+  showToast('📦 주문완료로 변경되었습니다');
 }
 
 window.completeDelivery = function() {
@@ -940,7 +940,7 @@ window.completeDelivery = function() {
     remove(ref(db, `inventory/${k}/delivery`));
   });
   selected.clear();
-  showToast('✅ 배송완료 - 재고가 초기화되었습니다');
+  showToast('🚚 배송완료 - 재고가 초기화되었습니다');
 }
 window.deleteSelected = function() {
   if (!selected.size) return;
