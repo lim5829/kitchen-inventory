@@ -331,7 +331,6 @@
         <th style="width:40px"><input type="checkbox" id="check-all" onchange="toggleAll(this)"></th>
         <th onclick="sortBy('name')">재료명</th>
         <th onclick="sortBy('quantity')">현재 수량</th>
-        <th onclick="sortBy('category')">카테고리</th>
         <th onclick="sortBy('min')">최소 수량</th>
         <th>상태</th>
         <th onclick="sortBy('memo')">메모</th>
@@ -661,6 +660,7 @@ window.renderTable = function() {
       <td><span class="drag-handle">⠿</span></td>
       <td class="row-check"><input type="checkbox" ${selected.has(item.fbKey)?'checked':''} onchange="toggleRow('${item.fbKey}',this)"></td>
       <td><div style="display:flex;align-items:center;gap:6px;padding:5px 8px;flex-wrap:wrap">
+        <span class="badge" style="background:${cs.bg};color:${cs.color};flex-shrink:0">${esc(item.category)}</span>
         <span class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="name" onblur="saveCell(this)">${esc(item.name)}</span>
         ${deliveryBadge}
       </div></td>
@@ -669,9 +669,7 @@ window.renderTable = function() {
         <div class="qty-num editable" contenteditable data-fbkey="${item.fbKey}" data-field="quantity" onblur="saveCell(this)" style="color:${qtyColor}">${item.quantity}</div>
         <button class="qty-btn" onclick="adjustQty('${item.fbKey}',1)">+</button>
       </div></td>
-      <td><div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="category" onblur="saveCell(this)">
-        <span class="badge" style="background:${cs.bg};color:${cs.color}">${esc(item.category)}</span>
-      </div></td>
+      <td><div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="category" onblur="saveCell(this)" style="display:none"></div></td>
       <td><div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="min" onblur="saveCell(this)">${item.min}</div></td>
       <td class="cell-inner">${status}</td>
       <td><div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="memo" onblur="saveCell(this)">${esc(item.memo)}</div></td>`;
