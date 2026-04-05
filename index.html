@@ -936,11 +936,10 @@ window.startDelivery = function() {
 
 window.completeDelivery = function() {
   selected.forEach(k => {
-    update(ref(db, `inventory/${k}`), {quantity: 0});
     remove(ref(db, `inventory/${k}/delivery`));
   });
   selected.clear();
-  showToast('🚚 배송완료 - 재고가 초기화되었습니다');
+  showToast('🚚 배송완료 처리되었습니다');
 }
 window.deleteSelected = function() {
   if (!selected.size) return;
