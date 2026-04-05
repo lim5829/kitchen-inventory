@@ -748,7 +748,20 @@ function renderCatList() {
 
 // 필드 변경 즉시 저장
 window.updateCatField = function(idx, field, value) {
-  if (categories[idx]) {
+  if (!categories[idx]) return;
+  if (field === 'name') {
+    const oldName = categories[idx].name;
+    categories[idx].name = value;
+    saveCats();
+    // 기존 재고 데이터의 category 필드도 일괄 업데이트
+    if (oldName && oldName !== value) {
+      Object.entries(items).forEach(([k, item]) => {
+        if (item.category === oldName) {
+          update(ref(db, `inventory/${k}`), {category: value});
+        }
+      });
+    }
+  } else {
     categories[idx][field] = value;
     saveCats();
   }
