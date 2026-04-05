@@ -147,7 +147,8 @@
   .modal-bg.open { display: flex; }
   .modal {
     background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
-    padding: 24px; width: 380px; max-width: 95vw; max-height: 90vh; overflow-y: auto;
+    padding: 24px; width: 380px; max-width: 95vw; max-height: 90vh; overflow-y: scroll;
+    -webkit-overflow-scrolling: touch;
   }
   .modal h3 { margin-bottom: 16px; font-size: 15px; }
   .modal label { font-size: 12px; color: var(--text2); display: block; margin-bottom: 4px; }
@@ -360,11 +361,9 @@
 <div class="modal-bg" id="modal-cat">
   <div class="modal" style="width:440px">
     <h3>⚙️ 카테고리 관리</h3>
-    <p style="font-size:12px;color:var(--text2);margin-bottom:14px">드래그로 순서 변경 · 이모지/이름/색상 수정 · 변경 즉시 저장</p>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:14px">⠿ 핸들 터치로 순서 변경 · 이름/색상 수정 · 변경 즉시 저장</p>
     <div class="cat-list" id="cat-list"></div>
     <div class="add-cat-row">
-      <input type="text" id="new-cat-emoji" placeholder="☕" maxlength="2"
-        style="width:46px;text-align:center;padding:6px 2px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:16px;outline:none">
       <input type="text" id="new-cat-name" placeholder="새 카테고리 이름"
         style="flex:1;padding:6px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Noto Sans KR',sans-serif;font-size:13px;outline:none">
       <input type="color" id="new-cat-color" value="#f59e0b"
@@ -668,7 +667,7 @@ window.renderTable = function() {
         <button class="qty-btn" onclick="adjustQty('${item.fbKey}',1)">+</button>
       </div></td>
       <td><div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="category" onblur="saveCell(this)">
-        <span class="badge" style="background:${cs.bg};color:${cs.color}">${emoji} ${esc(item.category)}</span>
+        <span class="badge" style="background:${cs.bg};color:${cs.color}">${esc(item.category)}</span>
         ${deliveryBadge ? `<br><span style="margin-top:3px;display:inline-block">${deliveryBadge}</span>` : ''}
       </div></td>
       <td><div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="min" onblur="saveCell(this)">${item.min}</div></td>
@@ -709,13 +708,9 @@ function renderCatList() {
   categories.forEach((cat, idx) => {
     const item = document.createElement('div');
     item.className = 'cat-item';
-    item.draggable = true;
     item.dataset.idx = idx;
     item.innerHTML = `
-      <span class="cat-drag">⠿</span>
-      <input type="text" value="${esc(cat.emoji||'')}" placeholder="☕" maxlength="2"
-        style="width:40px;text-align:center;padding:4px 2px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:16px;outline:none"
-        oninput="updateCatField(${idx},'emoji',this.value)">
+      <span class="cat-drag" id="cat-handle-${idx}">⠿</span>
       <input type="text" value="${esc(cat.name)}" placeholder="카테고리명"
         style="flex:1;padding:4px 8px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Noto Sans KR',sans-serif;font-size:13px;outline:none"
         onblur="updateCatField(${idx},'name',this.value)">
@@ -724,26 +719,69 @@ function renderCatList() {
         oninput="updateCatField(${idx},'color',this.value)">
       <button class="cat-del-btn" onclick="deleteCategory(${idx})">✕</button>`;
 
-    item.addEventListener('dragstart', e => {
-      dragSrcIdx = idx;
-      setTimeout(() => item.classList.add('dragging'), 0);
-      e.dataTransfer.effectAllowed = 'move';
-    });
-    item.addEventListener('dragend', () => item.classList.remove('dragging'));
-    item.addEventListener('dragover', e => { e.preventDefault(); item.classList.add('drag-over'); });
-    item.addEventListener('dragleave', () => item.classList.remove('drag-over'));
-    item.addEventListener('drop', e => {
+    // 터치 드래그 - 모달 스크롤 막기
+    const handle = item.querySelector('.cat-drag');
+    handle.addEventListener('touchstart', e => {
       e.preventDefault();
-      item.classList.remove('drag-over');
-      if (dragSrcIdx === null || dragSrcIdx === idx) return;
-      const moved = categories.splice(dragSrcIdx, 1)[0];
-      categories.splice(idx, 0, moved);
-      saveCats(); // 즉시 저장
-      renderCatList();
-    });
+      e.stopPropagation();
+      initCatTouchDrag(item, idx, e);
+    }, {passive: false});
 
     list.appendChild(item);
   });
+}
+
+function initCatTouchDrag(srcEl, srcIdx, e) {
+  const list = document.getElementById('cat-list');
+  const modal = document.querySelector('#modal-cat .modal');
+  srcEl.classList.add('dragging');
+
+  // 드래그 중 모달 스크롤 막기
+  const preventScroll = ev => ev.preventDefault();
+  modal.addEventListener('touchmove', preventScroll, {passive: false});
+
+  const ghost = srcEl.cloneNode(true);
+  ghost.style.cssText = `position:fixed;left:0;top:0;width:${srcEl.offsetWidth}px;opacity:0.75;
+    background:var(--surface2);pointer-events:none;z-index:9999;border:1px solid var(--accent);border-radius:8px;padding:8px 10px;`;
+  document.body.appendChild(ghost);
+
+  let lastOver = null;
+
+  function onMove(e) {
+    e.preventDefault();
+    const touch = e.touches[0];
+    ghost.style.transform = `translate(${touch.clientX - 20}px, ${touch.clientY - 20}px)`;
+    ghost.style.display = 'none';
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    ghost.style.display = '';
+    const targetEl = el?.closest('.cat-item');
+    if (lastOver && lastOver !== targetEl) lastOver.classList.remove('drag-over');
+    if (targetEl && targetEl !== srcEl) {
+      targetEl.classList.add('drag-over');
+      lastOver = targetEl;
+    }
+  }
+
+  function onEnd() {
+    srcEl.classList.remove('dragging');
+    ghost.remove();
+    modal.removeEventListener('touchmove', preventScroll);
+    document.removeEventListener('touchmove', onMove);
+    document.removeEventListener('touchend', onEnd);
+    if (lastOver) {
+      lastOver.classList.remove('drag-over');
+      const tgtIdx = +lastOver.dataset.idx;
+      if (srcIdx !== tgtIdx) {
+        const moved = categories.splice(srcIdx, 1)[0];
+        categories.splice(tgtIdx, 0, moved);
+        saveCats();
+        renderCatList();
+      }
+    }
+  }
+
+  document.addEventListener('touchmove', onMove, {passive: false});
+  document.addEventListener('touchend', onEnd);
 }
 
 // 필드 변경 즉시 저장
@@ -776,13 +814,11 @@ window.deleteCategory = function(idx) {
 }
 
 window.addCategory = function() {
-  const emoji = document.getElementById('new-cat-emoji').value.trim();
   const name = document.getElementById('new-cat-name').value.trim();
   const color = document.getElementById('new-cat-color').value;
   if (!name) { document.getElementById('new-cat-name').focus(); return; }
-  categories.push({emoji, name, color});
-  saveCats(); // 즉시 저장
-  document.getElementById('new-cat-emoji').value = '';
+  categories.push({name, color});
+  saveCats();
   document.getElementById('new-cat-name').value = '';
   renderCatList();
   showToast('✅ 카테고리 추가됨');
