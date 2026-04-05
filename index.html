@@ -80,7 +80,7 @@
   .manage-cat-btn:hover { border-color: var(--accent2); color: var(--accent2); }
 
   .table-wrap { overflow-x: auto; overflow-y: auto; padding-bottom: 80px; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 820px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 360px; }
   thead th {
     background: var(--surface); border-bottom: 2px solid var(--border);
     padding: 7px 8px; text-align: left; font-size: 11px; font-weight: 500;
@@ -327,13 +327,13 @@
   <table>
     <thead>
       <tr>
-        <th style="width:28px"></th>
-        <th style="width:40px"><input type="checkbox" id="check-all" onchange="toggleAll(this)"></th>
+        <th style="width:24px"></th>
+        <th style="width:32px"><input type="checkbox" id="check-all" onchange="toggleAll(this)"></th>
         <th onclick="sortBy('name')">재료명</th>
-        <th onclick="sortBy('quantity')">현재 수량</th>
-        <th onclick="sortBy('min')">최소 수량</th>
-        <th>상태</th>
-        <th onclick="sortBy('memo')">메모</th>
+        <th onclick="sortBy('quantity')" style="width:110px">현재 수량</th>
+        <th onclick="sortBy('min')" style="width:60px">최소</th>
+        <th style="width:48px">상태</th>
+        <th onclick="sortBy('memo')" style="width:80px">메모</th>
       </tr>
     </thead>
     <tbody id="table-body"></tbody>
