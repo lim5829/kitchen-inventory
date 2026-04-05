@@ -718,7 +718,7 @@ function renderCatList() {
         oninput="updateCatField(${idx},'emoji',this.value)">
       <input type="text" value="${esc(cat.name)}" placeholder="카테고리명"
         style="flex:1;padding:4px 8px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Noto Sans KR',sans-serif;font-size:13px;outline:none"
-        oninput="updateCatField(${idx},'name',this.value)">
+        onblur="updateCatField(${idx},'name',this.value)">
       <input type="color" value="${cat.color||'#888888'}"
         style="width:32px;height:32px;padding:2px;border:1px solid var(--border);border-radius:6px;background:var(--bg);cursor:pointer"
         oninput="updateCatField(${idx},'color',this.value)">
