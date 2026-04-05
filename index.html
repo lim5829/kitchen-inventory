@@ -660,8 +660,9 @@ window.renderTable = function() {
     tr.innerHTML = `
       <td><span class="drag-handle">⠿</span></td>
       <td class="row-check"><input type="checkbox" ${selected.has(item.fbKey)?'checked':''} onchange="toggleRow('${item.fbKey}',this)"></td>
-      <td><div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="name" onblur="saveCell(this)" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-        ${esc(item.name)}${deliveryBadge ? `<span>${deliveryBadge}</span>` : ''}
+      <td><div style="display:flex;align-items:center;gap:6px;padding:5px 8px;flex-wrap:wrap">
+        <span class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="name" onblur="saveCell(this)">${esc(item.name)}</span>
+        ${deliveryBadge}
       </div></td>
       <td><div class="qty-wrap">
         <button class="qty-btn" onclick="adjustQty('${item.fbKey}',-1)">−</button>
