@@ -21,8 +21,6 @@
     padding: 14px 20px; display: flex; align-items: center; gap: 12px;
     position: sticky; top: 0; z-index: 100;
   }
-  .logo { font-size: 17px; font-weight: 700; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
-  .logo span { color: var(--accent); }
   .sync-badge {
     font-size: 11px; padding: 3px 10px; border-radius: 10px;
     background: #2a1e00; color: var(--accent); border: 1px solid var(--accent);
@@ -289,7 +287,6 @@
 </div>
 
 <header>
-  <div class="logo">☕ <span>카페달파도</span> 재고관리</div>
   <div class="sync-badge" id="sync-badge"><div class="sync-dot"></div> 실시간 연동</div>
   <div class="toolbar">
     <button class="btn" id="delivery-btn" style="display:none;border-color:#a78bfa;color:#a78bfa" onclick="startDelivery()">📦 주문완료</button>
@@ -665,12 +662,7 @@ window.renderTable = function() {
     tbody.appendChild(tr);
   });
 
-  const all = Object.values(items);
-  document.getElementById('s-total').textContent = all.length;
-  document.getElementById('s-ok').textContent = all.filter(i=>i.quantity>0).length;
-  document.getElementById('s-low').textContent = 0;
-  document.getElementById('s-out').textContent = all.filter(i=>!i.quantity||+i.quantity===0).length;
-  document.getElementById('row-count').textContent = data.length+'개 항목';
+  document.getElementById('row-count').textContent = data.length + '개 항목';
   updateSelUI();
 }
 
