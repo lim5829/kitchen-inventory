@@ -120,6 +120,7 @@
   .delivery-badge { font-size: 11px; padding: 3px 9px; border-radius: 10px; font-weight: 600; white-space: nowrap; }
   .delivery-shipping { background: #1a1030; color: #a78bfa; border: 1px solid #a78bfa; }
   .delivery-done { background: #0d2a0d; color: #4ade80; border: 1px solid #4ade80; }
+  .delivery-waiting { background: #2a1500; color: #fb923c; border: 1px solid #fb923c; }
 
   .loading {
     position: fixed; inset: 0; background: var(--bg);
@@ -290,6 +291,7 @@
   <div class="sync-badge" id="sync-badge"><div class="sync-dot"></div> 실시간 연동</div>
   <div class="toolbar">
     <button class="btn" id="delivery-btn" style="display:none;border-color:#a78bfa;color:#a78bfa" onclick="startDelivery()">📦 주문완료</button>
+    <button class="btn" id="waiting-btn" style="display:none;border-color:#fb923c;color:#fb923c" onclick="startWaiting()">⏳ 대기</button>
     <button class="btn" id="complete-btn" style="display:none;border-color:#4ade80;color:#4ade80" onclick="completeDelivery()">🚚 배송완료</button>
     <button class="btn" onclick="openAdminModal()" style="border-color:#8b90b0;color:#8b90b0">⚙️ 관리자</button>
     <button class="btn danger" id="del-btn" style="display:none" onclick="deleteSelected()">선택 삭제</button>
@@ -628,9 +630,11 @@ window.renderTable = function() {
     const delivery = item.delivery || '';
     const deliveryBadge = delivery === 'shipping'
       ? '<span class="delivery-badge delivery-shipping">📦 주문완료</span>'
-      : delivery === 'done'
-        ? '<span class="delivery-badge delivery-done">🚚 배송완료</span>'
-        : '';
+      : delivery === 'waiting'
+        ? '<span class="delivery-badge delivery-waiting">⏳ 대기</span>'
+        : delivery === 'done'
+          ? '<span class="delivery-badge delivery-done">🚚 배송완료</span>'
+          : '';
 
     const tr = document.createElement('tr');
     tr.className = rowCls;
@@ -891,13 +895,16 @@ function updateSelUI() {
   document.getElementById('sel-count').textContent = n + '개 선택됨';
   document.getElementById('del-btn').style.display = n ? '' : 'none';
 
-  // 선택된 항목들의 배송 상태 확인
   const selectedItems = [...selected].map(k => items[k]).filter(Boolean);
+  const noneStatus = selectedItems.length > 0 && selectedItems.every(i => !i.delivery || i.delivery === '');
   const allShipping = selectedItems.length > 0 && selectedItems.every(i => i.delivery === 'shipping');
-  const noneShipping = selectedItems.length > 0 && selectedItems.every(i => !i.delivery || i.delivery === '');
+  const allWaiting = selectedItems.length > 0 && selectedItems.every(i => i.delivery === 'waiting');
 
-  document.getElementById('delivery-btn').style.display = (n > 0 && noneShipping) ? '' : 'none';
-  document.getElementById('complete-btn').style.display = (n > 0 && allShipping) ? '' : 'none';
+  // 아무 상태도 없을 때: 주문완료 + 대기 버튼
+  document.getElementById('delivery-btn').style.display = (n > 0 && noneStatus) ? '' : 'none';
+  document.getElementById('waiting-btn').style.display = (n > 0 && noneStatus) ? '' : 'none';
+  // 주문완료 상태일 때: 배송완료 버튼
+  document.getElementById('complete-btn').style.display = (n > 0 && (allShipping || allWaiting)) ? '' : 'none';
 }
 
 window.startDelivery = function() {
@@ -906,10 +913,14 @@ window.startDelivery = function() {
   showToast('📦 주문완료로 변경되었습니다');
 }
 
+window.startWaiting = function() {
+  selected.forEach(k => update(ref(db, `inventory/${k}`), {delivery: 'waiting'}));
+  selected.clear();
+  showToast('⏳ 대기로 변경되었습니다');
+}
+
 window.completeDelivery = function() {
-  selected.forEach(k => {
-    remove(ref(db, `inventory/${k}/delivery`));
-  });
+  selected.forEach(k => remove(ref(db, `inventory/${k}/delivery`)));
   selected.clear();
   showToast('🚚 배송완료 처리되었습니다');
 }
