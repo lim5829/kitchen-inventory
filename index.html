@@ -83,7 +83,7 @@
   table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 820px; }
   thead th {
     background: var(--surface); border-bottom: 2px solid var(--border);
-    padding: 10px 12px; text-align: left; font-size: 11px; font-weight: 500;
+    padding: 7px 8px; text-align: left; font-size: 11px; font-weight: 500;
     color: var(--text2); text-transform: uppercase; letter-spacing: 0.8px;
     white-space: nowrap; user-select: none; cursor: pointer;
   }
@@ -94,26 +94,26 @@
   tbody tr.low-stock td:first-child { border-left: 3px solid var(--warn); }
   tbody tr.out-stock td:first-child { border-left: 3px solid var(--danger); }
   td { padding: 0; vertical-align: middle; }
-  td.cell-inner { padding: 8px 12px; }
+  td.cell-inner { padding: 4px 8px; }
 
   .editable {
-    padding: 8px 12px; min-height: 36px; cursor: text; outline: none;
+    padding: 5px 8px; min-height: 30px; cursor: text; outline: none;
     transition: background 0.1s; border-right: 1px solid transparent; white-space: nowrap;
   }
   .editable:focus { background: #0d1525; border-right: 1px solid var(--accent2); color: var(--accent2); }
 
-  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; }
+  .badge { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 500; }
 
-  .qty-wrap { display: flex; align-items: center; gap: 4px; padding: 6px 10px; }
+  .qty-wrap { display: flex; align-items: center; gap: 3px; padding: 4px 8px; }
   .qty-btn {
-    width: 24px; height: 24px; border-radius: 6px; border: 1px solid var(--border);
-    background: var(--surface2); color: var(--text); cursor: pointer; font-size: 15px; line-height: 1;
+    width: 22px; height: 22px; border-radius: 5px; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text); cursor: pointer; font-size: 14px; line-height: 1;
     display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0;
   }
   .qty-btn:hover { border-color: var(--accent); color: var(--accent); background: #2a1e00; }
-  .qty-num { font-family: 'DM Mono', monospace; font-size: 13px; min-width: 44px; text-align: center; font-weight: 500; cursor: text; outline: none; }
+  .qty-num { font-family: 'DM Mono', monospace; font-size: 13px; min-width: 36px; text-align: center; font-weight: 500; cursor: text; outline: none; }
 
-  .row-check { padding: 8px 12px; text-align: center; }
+  .row-check { padding: 4px 8px; text-align: center; }
   input[type=checkbox] { accent-color: var(--accent); width: 14px; height: 14px; cursor: pointer; }
 
   .status { font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 600; }
