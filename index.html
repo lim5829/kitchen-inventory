@@ -121,6 +121,11 @@
   .status-low { background: #2a1500; color: var(--warn); }
   .status-out { background: #2a0a0a; color: var(--danger); }
 
+  .drag-handle { padding: 4px 6px; color: var(--text2); cursor: grab; font-size: 14px; user-select: none; }
+  .drag-handle:active { cursor: grabbing; }
+  tbody tr.dragging-row { opacity: 0.4; }
+  tbody tr.drag-over-row { border-top: 2px solid var(--accent); }
+
   .delivery-badge { font-size: 11px; padding: 3px 9px; border-radius: 10px; font-weight: 600; white-space: nowrap; }
   .delivery-shipping { background: #1a1030; color: #a78bfa; border: 1px solid #a78bfa; }
   .delivery-done { background: #0d2a0d; color: #4ade80; border: 1px solid #4ade80; }
@@ -321,6 +326,7 @@
   <table>
     <thead>
       <tr>
+        <th style="width:28px"></th>
         <th style="width:40px"><input type="checkbox" id="check-all" onchange="toggleAll(this)"></th>
         <th onclick="sortBy('name')">재료명</th>
         <th onclick="sortBy('category')">카테고리</th>
@@ -400,8 +406,10 @@ const itemsRef = ref(db, 'inventory');
 const catsRef = ref(db, 'categories');
 const staffPwRef = ref(db, 'config/staffPassword');
 const adminPwRef = ref(db, 'config/adminPassword');
+const orderRef = ref(db, 'itemOrder');
 
 let items = {};
+let itemOrder = {};
 let categories = [];
 let filterCat = '전체';
 let sortKey = null, sortDir = 1;
@@ -411,6 +419,11 @@ let firstCatLoad = true;
 let dragSrcIdx = null;
 let staffPassword = null;
 let adminPassword = null;
+
+onValue(orderRef, (snap) => {
+  itemOrder = snap.val() || {};
+  if (!firstLoad) renderTable();
+});
 
 // --- Login ---
 onValue(staffPwRef, (snap) => {
@@ -606,11 +619,20 @@ window.renderTable = function() {
     .map(([k,v]) => ({...v, fbKey:k}))
     .filter(i => (filterCat==='전체' || i.category===filterCat)
       && (!q || [i.name,i.memo,i.location,i.category].some(s=>(s||'').toLowerCase().includes(q))));
-  if (sortKey) data.sort((a,b) => {
-    let av=a[sortKey]||'', bv=b[sortKey]||'';
-    if (['quantity','min'].includes(sortKey)){av=+av;bv=+bv;}
-    return av<bv?-sortDir:av>bv?sortDir:0;
-  });
+  if (sortKey) {
+    data.sort((a,b) => {
+      let av=a[sortKey]||'', bv=b[sortKey]||'';
+      if (['quantity','min'].includes(sortKey)){av=+av;bv=+bv;}
+      return av<bv?-sortDir:av>bv?sortDir:0;
+    });
+  } else {
+    // itemOrder 기준 정렬
+    data.sort((a,b) => {
+      const ao = itemOrder[a.fbKey] ?? 9999;
+      const bo = itemOrder[b.fbKey] ?? 9999;
+      return ao - bo;
+    });
+  }
 
   const tbody = document.getElementById('table-body');
   tbody.innerHTML = '';
@@ -635,7 +657,9 @@ window.renderTable = function() {
     tr.className = rowCls;
     tr.dataset.fbkey = item.fbKey;
     tr.dataset.delivery = delivery;
+    tr.draggable = true;
     tr.innerHTML = `
+      <td><span class="drag-handle">⠿</span></td>
       <td class="row-check"><input type="checkbox" ${selected.has(item.fbKey)?'checked':''} onchange="toggleRow('${item.fbKey}',this)"></td>
       <td><div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="name" onblur="saveCell(this)">${esc(item.name)}</div></td>
       <td><div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="category" onblur="saveCell(this)">
@@ -650,6 +674,36 @@ window.renderTable = function() {
       <td><div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="min" onblur="saveCell(this)">${item.min}</div></td>
       <td class="cell-inner">${status}</td>
       <td><div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="memo" onblur="saveCell(this)">${esc(item.memo)}</div></td>`;
+
+    // Drag events
+    let dragSrcRow = null;
+    tr.addEventListener('dragstart', e => {
+      dragSrcRow = tr;
+      setTimeout(() => tr.classList.add('dragging-row'), 0);
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    tr.addEventListener('dragend', () => tr.classList.remove('dragging-row'));
+    tr.addEventListener('dragover', e => { e.preventDefault(); tr.classList.add('drag-over-row'); });
+    tr.addEventListener('dragleave', () => tr.classList.remove('drag-over-row'));
+    tr.addEventListener('drop', e => {
+      e.preventDefault();
+      tr.classList.remove('drag-over-row');
+      if (!dragSrcRow || dragSrcRow === tr) return;
+      const srcKey = dragSrcRow.dataset.fbkey;
+      const tgtKey = tr.dataset.fbkey;
+      // Get current order from DOM
+      const rows = [...document.querySelectorAll('#table-body tr[data-fbkey]')];
+      const order = rows.map(r => r.dataset.fbkey);
+      const srcIdx = order.indexOf(srcKey);
+      const tgtIdx = order.indexOf(tgtKey);
+      order.splice(srcIdx, 1);
+      order.splice(tgtIdx, 0, srcKey);
+      // Save order to Firebase
+      const orderObj = {};
+      order.forEach((k, i) => { orderObj[k] = i; });
+      update(ref(db, 'itemOrder'), orderObj);
+    });
+
     tbody.appendChild(tr);
   });
 
