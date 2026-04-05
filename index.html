@@ -330,8 +330,8 @@
         <th style="width:24px"></th>
         <th style="width:32px"><input type="checkbox" id="check-all" onchange="toggleAll(this)"></th>
         <th onclick="sortBy('name')">재료명</th>
-        <th onclick="sortBy('quantity')" style="width:120px">현재 수량</th>
-        <th onclick="sortBy('min')" style="width:50px">최소</th>
+        <th onclick="sortBy('quantity')" style="width:115px;text-align:center">현재 수량</th>
+        <th onclick="sortBy('min')" style="width:44px;text-align:center;padding:7px 4px">최소</th>
       </tr>
     </thead>
     <tbody id="table-body"></tbody>
@@ -668,7 +668,7 @@ window.renderTable = function() {
         <button class="qty-btn" onclick="adjustQty('${item.fbKey}',1)">+</button>
       </div></td>
       <td><div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="category" onblur="saveCell(this)" style="display:none"></div></td>
-      <td><div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="min" onblur="saveCell(this)">${item.min}</div></td>`;
+      <td style="text-align:center;padding:0 4px"><div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="min" onblur="saveCell(this)" style="padding:5px 4px;text-align:center">${item.min}</div></td>`;
 
     // Touch drag via handle
     const handle = tr.querySelector('.drag-handle');
