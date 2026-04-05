@@ -676,6 +676,8 @@ window.renderTable = function() {
       e.preventDefault();
       initTouchDrag(tr, e);
     }, {passive: false});
+
+    tbody.appendChild(tr);
   });
 
   const all = Object.values(items);
