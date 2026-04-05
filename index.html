@@ -332,8 +332,6 @@
         <th onclick="sortBy('name')">재료명</th>
         <th onclick="sortBy('quantity')" style="width:110px">현재 수량</th>
         <th onclick="sortBy('min')" style="width:60px">최소</th>
-        <th style="width:48px">상태</th>
-        <th onclick="sortBy('memo')" style="width:80px">메모</th>
       </tr>
     </thead>
     <tbody id="table-body"></tbody>
@@ -670,9 +668,7 @@ window.renderTable = function() {
         <button class="qty-btn" onclick="adjustQty('${item.fbKey}',1)">+</button>
       </div></td>
       <td><div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="category" onblur="saveCell(this)" style="display:none"></div></td>
-      <td><div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="min" onblur="saveCell(this)">${item.min}</div></td>
-      <td class="cell-inner">${status}</td>
-      <td><div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="memo" onblur="saveCell(this)">${esc(item.memo)}</div></td>`;
+      <td><div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="min" onblur="saveCell(this)">${item.min}</div></td>`;
 
     // Touch drag via handle
     const handle = tr.querySelector('.drag-handle');
