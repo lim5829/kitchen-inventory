@@ -308,8 +308,7 @@
 
 <div class="stats">
   <div class="stat"><div class="stat-label">전체 품목</div><div class="stat-value amber" id="s-total">-</div></div>
-  <div class="stat"><div class="stat-label">재고 정상</div><div class="stat-value green" id="s-ok">-</div></div>
-  <div class="stat"><div class="stat-label">부족 주의</div><div class="stat-value orange" id="s-low">-</div></div>
+  <div class="stat"><div class="stat-label">재고 있음</div><div class="stat-value green" id="s-ok">-</div></div>
   <div class="stat"><div class="stat-label">재고 없음</div><div class="stat-value red" id="s-out">-</div></div>
 </div>
 
@@ -344,7 +343,6 @@
     <label>재료명</label><input type="text" id="m-name" placeholder="예: 원두">
     <label>카테고리</label><select id="m-cat"></select>
     <label>현재 수량</label><input type="number" id="m-qty" placeholder="0" min="0">
-    <label>최소 수량 (부족 알림 기준)</label><input type="number" id="m-min" placeholder="0" min="0">
     <label>메모</label><input type="text" id="m-memo" placeholder="자유롭게 입력...">
     <div class="modal-actions">
       <button class="btn" onclick="closeAddModal()">취소</button>
@@ -632,8 +630,8 @@ window.renderTable = function() {
   const tbody = document.getElementById('table-body');
   tbody.innerHTML = '';
   data.forEach(item => {
-    const qtyColor = item.quantity===0?'#f87171':item.quantity<item.min?'#fb923c':'#4ade80';
-    const rowCls = (item.quantity===0?'out-stock':item.quantity<item.min?'low-stock':'') + (selected.has(item.fbKey)?' selected':'');
+    const qtyColor = item.quantity===0 ? '#f87171' : '#4ade80';
+    const rowCls = (item.quantity===0 ? 'out-stock' : '') + (selected.has(item.fbKey)?' selected':'');
     const status = item.quantity===0
       ? '<span class="status status-out">없음</span>'
       : item.quantity<item.min
@@ -660,7 +658,6 @@ window.renderTable = function() {
         <span class="badge" style="background:${cs.bg};color:${cs.color};flex-shrink:0;font-size:10px;padding:1px 5px">${esc(item.category)}</span>
         <div style="min-width:0;flex:1">
           <div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="name" onblur="saveCell(this)" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(item.name)}</div>
-          <div style="font-size:10px;color:var(--text2);margin-top:1px">최소 <span class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="min" onblur="saveCell(this)" style="display:inline">${item.min}</span></div>
         </div>
         ${deliveryBadge}
       </div></td>
@@ -670,7 +667,6 @@ window.renderTable = function() {
         <button class="qty-btn" onclick="adjustQty('${item.fbKey}',1)">+</button>
       </div></td>`;
 
-    // Touch drag via handle
     const handle = tr.querySelector('.drag-handle');
     handle.addEventListener('touchstart', e => {
       e.preventDefault();
@@ -682,8 +678,8 @@ window.renderTable = function() {
 
   const all = Object.values(items);
   document.getElementById('s-total').textContent = all.length;
-  document.getElementById('s-ok').textContent = all.filter(i=>i.quantity>0&&i.quantity>=(i.min||0)).length;
-  document.getElementById('s-low').textContent = all.filter(i=>i.quantity>0&&i.quantity<(i.min||0)).length;
+  document.getElementById('s-ok').textContent = all.filter(i=>i.quantity>0).length;
+  document.getElementById('s-low').textContent = 0;
   document.getElementById('s-out').textContent = all.filter(i=>!i.quantity||+i.quantity===0).length;
   document.getElementById('row-count').textContent = data.length+'개 항목';
   updateSelUI();
@@ -961,11 +957,10 @@ window.addItem = function() {
   push(itemsRef,{
     name, category:document.getElementById('m-cat').value,
     quantity:+document.getElementById('m-qty').value||0,
-    min:+document.getElementById('m-min').value||0,
     memo:document.getElementById('m-memo').value.trim()
   });
   closeAddModal();
-  ['m-name','m-qty','m-min','m-memo'].forEach(id=>document.getElementById(id).value='');
+  ['m-name','m-qty','m-memo'].forEach(id=>document.getElementById(id).value='');
   showToast('✅ 재료가 추가되었습니다');
 }
 
