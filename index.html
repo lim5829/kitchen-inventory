@@ -614,19 +614,24 @@ onValue(regularDaysRef, (snap) => {
 });
 
 // --- Login ---
-onValue(staffPwRef, (snap) => {
-  staffPassword = snap.exists() ? snap.val() : '1234';
-  if (!snap.exists()) set(staffPwRef, '1234');
-}, { onlyOnce: true });
+const pwPromise = new Promise(resolve => {
+  let s = false, a = false;
+  onValue(staffPwRef, (snap) => {
+    staffPassword = snap.exists() ? snap.val() : '1234';
+    if (!snap.exists()) set(staffPwRef, '1234');
+    s = true; if (s && a) resolve();
+  }, { onlyOnce: true });
+  onValue(adminPwRef, (snap) => {
+    adminPassword = snap.exists() ? snap.val() : '0000';
+    if (!snap.exists()) set(adminPwRef, '0000');
+    a = true; if (s && a) resolve();
+  }, { onlyOnce: true });
+});
 
-onValue(adminPwRef, (snap) => {
-  adminPassword = snap.exists() ? snap.val() : '0000';
-  if (!snap.exists()) set(adminPwRef, '0000');
-}, { onlyOnce: true });
-
-window.tryLogin = function() {
+window.tryLogin = async function() {
   const input = document.getElementById('login-pw').value;
   const err = document.getElementById('login-err');
+  await pwPromise;
   if (input === staffPassword || input === adminPassword) {
     document.getElementById('login-screen').classList.add('hidden');
     err.textContent = '';
