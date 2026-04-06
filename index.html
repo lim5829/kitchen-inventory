@@ -254,29 +254,45 @@
 
   /* Login screen */
   .login-screen {
-    position: fixed; inset: 0; background: var(--bg);
+    position: fixed; inset: 0;
+    background: #0d1117;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    z-index: 1000; gap: 8px; transition: opacity 0.3s;
+    z-index: 1000; transition: opacity 0.3s;
   }
   .login-screen.hidden { display: none; }
   .login-box {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 16px; padding: 32px 28px; width: 320px; max-width: 92vw;
-    display: flex; flex-direction: column; gap: 14px; align-items: center;
+    display: flex; flex-direction: column; gap: 20px; align-items: center;
+    width: 300px; max-width: 92vw;
   }
-  .login-logo { font-size: 26px; font-weight: 700; }
-  .login-logo span { color: var(--accent); }
-  .login-sub { font-size: 13px; color: var(--text2); }
+  .login-logo-wrap {
+    display: flex; flex-direction: column; align-items: center; gap: 12px;
+    margin-bottom: 8px;
+  }
+  .login-logo-svg { width: 100px; height: 100px; opacity: 0.95; }
+  .login-brand {
+    font-size: 22px; font-weight: 300; letter-spacing: 4px;
+    color: #e8eaf6; font-family: 'Noto Sans KR', sans-serif;
+  }
+  .login-brand span { font-weight: 700; }
   .login-input {
-    width: 100%; background: var(--bg); border: 1px solid var(--border);
-    border-radius: 8px; padding: 12px 14px; color: var(--text);
-    font-family: 'Noto Sans KR', sans-serif; font-size: 18px; outline: none;
-    text-align: center; letter-spacing: 6px;
+    width: 100%; background: #1a1d27; border: 1px solid #2e3248;
+    border-radius: 10px; padding: 14px; color: #e8eaf6;
+    font-family: 'Noto Sans KR', sans-serif; font-size: 20px; outline: none;
+    text-align: center; letter-spacing: 8px;
+    transition: border-color 0.2s;
   }
-  .login-input:focus { border-color: var(--accent); }
+  .login-input:focus { border-color: #8b90b0; }
   .login-input.shake { border-color: var(--danger); animation: shake 0.3s; }
   @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-8px)} 75%{transform:translateX(8px)} }
   .login-err { font-size: 12px; color: var(--danger); min-height: 16px; text-align: center; }
+  .login-enter-btn {
+    width: 100%; padding: 12px; border-radius: 10px;
+    background: #1e2235; border: 1px solid #2e3248;
+    color: #8b90b0; font-family: 'Noto Sans KR', sans-serif;
+    font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s;
+    letter-spacing: 2px;
+  }
+  .login-enter-btn:hover { border-color: #8b90b0; color: #e8eaf6; }
 
   .toast {
     position: fixed; bottom: 60px; right: 20px;
@@ -292,11 +308,23 @@
 <!-- Login Screen -->
 <div class="login-screen" id="login-screen">
   <div class="login-box">
-    <div class="login-logo">☕ <span>카페달파도</span></div>
-    <div class="login-sub">재고관리 시스템</div>
-    <input class="login-input" type="password" id="login-pw" placeholder="••••" maxlength="20"
+    <div class="login-logo-wrap">
+      <!-- dal.pado logo SVG -->
+      <svg class="login-logo-svg" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Moon -->
+        <path d="M108 30 C90 30 75 42 72 58 C80 54 90 52 100 54 C122 58 138 78 135 100 C133 112 126 122 116 128 C134 126 148 112 150 94 C153 68 134 32 108 30Z" fill="#e8eaf6" opacity="0.9"/>
+        <!-- Wave 1 -->
+        <path d="M30 115 C45 108 60 122 75 115 C90 108 105 122 120 115 C135 108 150 122 165 115 C168 114 170 116 168 119 C153 126 138 112 123 119 C108 126 93 112 78 119 C63 126 48 112 33 119 C30 120 28 118 30 115Z" fill="#e8eaf6" opacity="0.85"/>
+        <!-- Wave 2 -->
+        <path d="M25 135 C40 128 55 142 70 135 C85 128 100 142 115 135 C130 128 145 142 160 135 C163 134 165 136 163 139 C148 146 133 132 118 139 C103 146 88 132 73 139 C58 146 43 132 28 139 C25 140 23 138 25 135Z" fill="#e8eaf6" opacity="0.7"/>
+        <!-- Wave 3 -->
+        <path d="M30 155 C45 148 60 162 75 155 C90 148 105 162 120 155 C135 148 150 162 165 155 C168 154 170 156 168 159 C153 166 138 152 123 159 C108 166 93 152 78 159 C63 166 48 152 33 159 C30 160 28 158 30 155Z" fill="#e8eaf6" opacity="0.5"/>
+      </svg>
+      <div class="login-brand">dal<span>.</span>pado</div>
+    </div>
+    <input class="login-input" type="password" id="login-pw" placeholder="· · · ·" maxlength="20"
       onkeydown="if(event.key==='Enter') tryLogin()">
-    <button class="btn primary" style="width:100%;padding:10px" onclick="tryLogin()">입장</button>
+    <button class="login-enter-btn" onclick="tryLogin()">입 장</button>
     <div class="login-err" id="login-err"></div>
   </div>
 </div>
