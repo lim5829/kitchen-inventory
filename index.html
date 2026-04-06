@@ -414,7 +414,7 @@
     <div class="staff-filter" id="staff-filter"></div>
     <div class="leave-calendar" id="leave-calendar"></div>
     <div class="leave-list-section">
-      <div class="leave-list-title">출근 및 휴무 일정</div>
+      <div class="leave-list-title">추가 일정</div>
       <div id="leave-list"></div>
       <button class="leave-add-btn" onclick="openLeaveModal()">+ 일정 등록</button>
     </div>
@@ -1286,10 +1286,8 @@ function renderLeave() {
     names.forEach(n => regularItems.push({date: dateStr, staff: n, memo: '정기휴일', isRegular: true}));
   }
 
-  const allItems = [
-    ...monthLeaves.map(l => ({...l, isRegular: false})),
-    ...regularItems
-  ].sort((a,b) => a.date.localeCompare(b.date) || a.staff.localeCompare(b.staff));
+  const allItems = monthLeaves.map(l => ({...l, isRegular: false}))
+    .sort((a,b) => a.date.localeCompare(b.date) || a.staff.localeCompare(b.staff));
 
   if (allItems.length === 0) {
     list.innerHTML = `<div style="color:var(--text2);font-size:13px;padding:12px 0">이번 달 일정이 없어요</div>`;
