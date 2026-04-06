@@ -1204,11 +1204,9 @@ window.changeMonth = function(delta) {
 }
 
 function renderLeave() {
-  // Month title
   const months = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
   document.getElementById('leave-month-title').textContent = `${leaveYear}년 ${months[leaveMonth]}`;
 
-  // Filter leaves for this month
   const monthKey = `${leaveYear}-${String(leaveMonth+1).padStart(2,'0')}`;
   const monthLeaves = Object.entries(leaves)
     .map(([k,v]) => ({...v, key:k}))
@@ -1216,63 +1214,101 @@ function renderLeave() {
     .filter(l => selectedStaff === '전체' || l.staff === selectedStaff)
     .sort((a,b) => a.date.localeCompare(b.date));
 
+  const firstDay = new Date(leaveYear, leaveMonth, 1).getDay();
+  const daysInMonth = new Date(leaveYear, leaveMonth+1, 0).getDate();
+  const today = new Date();
+
+  // 날짜별 이름 맵 (개인휴무)
+  const leaveDateMap = {}; // date -> [names]
+  monthLeaves.forEach(l => {
+    if (!leaveDateMap[l.date]) leaveDateMap[l.date] = [];
+    leaveDateMap[l.date].push(l.staff);
+  });
+
+  // 정기휴일: 직원별 요일 -> 날짜별 이름
+  const regularDateMap = {}; // date -> [names]
+  const daysInThisMonth = daysInMonth;
+  for (let d = 1; d <= daysInThisMonth; d++) {
+    const dateStr = `${leaveYear}-${String(leaveMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dow = new Date(leaveYear, leaveMonth, d).getDay();
+    const names = [];
+    Object.entries(regularDays).forEach(([name, days]) => {
+      if (!days) return;
+      if (selectedStaff !== '전체' && name !== selectedStaff) return;
+      if (days.includes(dow)) names.push(name);
+    });
+    if (names.length > 0) regularDateMap[dateStr] = names;
+  }
+
   // Calendar
   const cal = document.getElementById('leave-calendar');
   cal.innerHTML = '';
   ['일','월','화','수','목','금','토'].forEach(d => {
     const h = document.createElement('div');
-    h.className = 'cal-header';
-    h.textContent = d;
+    h.className = 'cal-header'; h.textContent = d;
     cal.appendChild(h);
   });
-
-  const firstDay = new Date(leaveYear, leaveMonth, 1).getDay();
-  const daysInMonth = new Date(leaveYear, leaveMonth+1, 0).getDate();
-  const today = new Date();
-  const leaveDates = new Set(monthLeaves.map(l => l.date));
-
-  // 정기휴일 요일 계산 (필터된 직원 기준)
-  const regularDayNums = new Set();
-  if (selectedStaff === '전체') {
-    Object.values(regularDays).forEach(days => days && days.forEach(d => regularDayNums.add(d)));
-  } else {
-    (regularDays[selectedStaff] || []).forEach(d => regularDayNums.add(d));
-  }
 
   for (let i = 0; i < firstDay; i++) {
     const empty = document.createElement('div');
     empty.className = 'cal-day empty';
     cal.appendChild(empty);
   }
+
   for (let d = 1; d <= daysInMonth; d++) {
     const dateStr = `${leaveYear}-${String(leaveMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const dayOfWeek = new Date(leaveYear, leaveMonth, d).getDay();
-    const isRegular = regularDayNums.has(dayOfWeek);
     const div = document.createElement('div');
     div.className = 'cal-day';
+    div.style.cssText = 'padding:4px 2px;font-size:11px;cursor:pointer;';
     const isToday = today.getFullYear()===leaveYear && today.getMonth()===leaveMonth && today.getDate()===d;
     if (isToday) div.classList.add('today');
-    if (leaveDates.has(dateStr)) div.classList.add('has-leave');
-    const regularDot = isRegular ? `<div class="leave-dot" style="background:var(--accent2)"></div>` : '';
-    const leaveDot = leaveDates.has(dateStr) ? `<div class="leave-dot"></div>` : '';
-    div.innerHTML = `${d}${leaveDot}${regularDot}`;
+    const leaveNames = leaveDateMap[dateStr] || [];
+    const regularNames = regularDateMap[dateStr] || [];
+    if (leaveNames.length > 0 || regularNames.length > 0) div.classList.add('has-leave');
+
+    const leaveHTML = leaveNames.map(n =>
+      `<div style="font-size:9px;background:#2a1e00;color:var(--accent);border-radius:3px;padding:1px 3px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(n)}</div>`
+    ).join('');
+    const regularHTML = regularNames.map(n =>
+      `<div style="font-size:9px;background:#001a22;color:var(--accent2);border-radius:3px;padding:1px 3px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(n)}</div>`
+    ).join('');
+
+    div.innerHTML = `<div style="text-align:center;margin-bottom:2px">${d}</div>${leaveHTML}${regularHTML}`;
     div.onclick = () => { document.getElementById('l-date').value = dateStr; openLeaveModal(); };
     cal.appendChild(div);
   }
 
-  // List
+  // List: 개인 휴무 + 정기휴일 합쳐서 날짜순 정렬
   const list = document.getElementById('leave-list');
   list.innerHTML = '';
-  if (monthLeaves.length === 0) {
+
+  // 정기휴일을 이번달 날짜로 펼치기
+  const regularItems = [];
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${leaveYear}-${String(leaveMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const names = regularDateMap[dateStr] || [];
+    names.forEach(n => regularItems.push({date: dateStr, staff: n, memo: '정기휴일', isRegular: true}));
+  }
+
+  const allItems = [
+    ...monthLeaves.map(l => ({...l, isRegular: false})),
+    ...regularItems
+  ].sort((a,b) => a.date.localeCompare(b.date) || a.staff.localeCompare(b.staff));
+
+  if (allItems.length === 0) {
     list.innerHTML = `<div style="color:var(--text2);font-size:13px;padding:12px 0">이번 달 휴무가 없어요</div>`;
   } else {
-    monthLeaves.forEach(l => {
+    allItems.forEach(l => {
       const item = document.createElement('div');
       item.className = 'leave-item';
+      const badge = l.isRegular
+        ? `<span style="font-size:10px;color:var(--accent2);background:#001a22;border:1px solid var(--accent2);border-radius:4px;padding:1px 5px;margin-left:4px">정기</span>`
+        : '';
+      const delBtn = l.isRegular ? '' : `<button class="leave-item-del" onclick="deleteLeave('${l.key}')">✕</button>`;
       item.innerHTML = `
         <div class="leave-item-date">${l.date.slice(5)}</div>
-        <div class="leave-item-name">${esc(l.staff)}${l.memo ? ` <span style="color:var(--text2);font-size:11px">· ${esc(l.memo)}</span>` : ''}</div>
-        <button class="leave-item-del" onclick="deleteLeave('${l.key}')">✕</button>`;
+        <div class="leave-item-name">${esc(l.staff)}${badge}${l.memo&&!l.isRegular ? ` <span style="color:var(--text2);font-size:11px">· ${esc(l.memo)}</span>` : ''}</div>
+        ${delBtn}`;
       list.appendChild(item);
     });
   }
