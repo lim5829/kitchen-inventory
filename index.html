@@ -241,6 +241,17 @@
 
   .staff-filter { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
 
+  .day-btn {
+    width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--border);
+    background: var(--surface2); color: var(--text2); font-family: 'Noto Sans KR', sans-serif;
+    font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s;
+  }
+  .day-btn.active { background: var(--accent); color: #1a0f00; border-color: var(--accent); font-weight: 700; }
+  .regular-tag {
+    font-size: 10px; color: var(--accent2); background: #001a22;
+    border: 1px solid var(--accent2); border-radius: 4px; padding: 1px 5px; margin-left: 4px;
+  }
+
   /* Login screen */
   .login-screen {
     position: fixed; inset: 0; background: var(--bg);
@@ -429,7 +440,7 @@
 
 <!-- Staff Manager Modal -->
 <div class="modal-bg" id="modal-staff">
-  <div class="modal" style="width:320px">
+  <div class="modal" style="width:340px">
     <h3>👤 직원 관리</h3>
     <div id="staff-list" style="margin-bottom:12px"></div>
     <div style="display:flex;gap:8px">
@@ -438,6 +449,27 @@
     </div>
     <div class="modal-actions" style="margin-top:12px">
       <button class="btn primary" onclick="closeStaffModal()">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- Regular Day Off Modal -->
+<div class="modal-bg" id="modal-regular">
+  <div class="modal" style="width:340px">
+    <h3 id="regular-modal-title">📆 정기휴일 설정</h3>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:14px">매주 쉬는 요일을 선택하세요</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px" id="regular-days-wrap">
+      <button class="day-btn" data-day="0" onclick="toggleDayBtn(this)">일</button>
+      <button class="day-btn" data-day="1" onclick="toggleDayBtn(this)">월</button>
+      <button class="day-btn" data-day="2" onclick="toggleDayBtn(this)">화</button>
+      <button class="day-btn" data-day="3" onclick="toggleDayBtn(this)">수</button>
+      <button class="day-btn" data-day="4" onclick="toggleDayBtn(this)">목</button>
+      <button class="day-btn" data-day="5" onclick="toggleDayBtn(this)">금</button>
+      <button class="day-btn" data-day="6" onclick="toggleDayBtn(this)">토</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeRegularModal()">취소</button>
+      <button class="btn primary" onclick="saveRegularDays()">저장</button>
     </div>
   </div>
 </div>
@@ -508,9 +540,11 @@ const adminPwRef = ref(db, 'config/adminPassword');
 const orderRef = ref(db, 'itemOrder');
 const leaveRef = ref(db, 'leaves');
 const staffListRef = ref(db, 'staffList');
+const regularDaysRef = ref(db, 'regularDays'); // {직원명: [0,3,6]}
 
 let items = {};
 let itemOrder = {};
+let regularDays = {}; // 직원별 정기휴일
 let categories = [];
 let filterCat = '전체';
 let sortKey = null, sortDir = 1;
@@ -543,6 +577,12 @@ onValue(staffListRef, (snap) => {
   renderStaffFilter();
   renderStaffSelect();
   if (currentTab === 'leave') renderLeave();
+});
+
+onValue(regularDaysRef, (snap) => {
+  regularDays = snap.val() || {};
+  if (currentTab === 'leave') renderLeave();
+  if (document.getElementById('modal-staff').classList.contains('open')) renderStaffList();
 });
 
 // --- Login ---
@@ -1191,6 +1231,14 @@ function renderLeave() {
   const today = new Date();
   const leaveDates = new Set(monthLeaves.map(l => l.date));
 
+  // 정기휴일 요일 계산 (필터된 직원 기준)
+  const regularDayNums = new Set();
+  if (selectedStaff === '전체') {
+    Object.values(regularDays).forEach(days => days && days.forEach(d => regularDayNums.add(d)));
+  } else {
+    (regularDays[selectedStaff] || []).forEach(d => regularDayNums.add(d));
+  }
+
   for (let i = 0; i < firstDay; i++) {
     const empty = document.createElement('div');
     empty.className = 'cal-day empty';
@@ -1198,12 +1246,16 @@ function renderLeave() {
   }
   for (let d = 1; d <= daysInMonth; d++) {
     const dateStr = `${leaveYear}-${String(leaveMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dayOfWeek = new Date(leaveYear, leaveMonth, d).getDay();
+    const isRegular = regularDayNums.has(dayOfWeek);
     const div = document.createElement('div');
     div.className = 'cal-day';
     const isToday = today.getFullYear()===leaveYear && today.getMonth()===leaveMonth && today.getDate()===d;
     if (isToday) div.classList.add('today');
     if (leaveDates.has(dateStr)) div.classList.add('has-leave');
-    div.innerHTML = `${d}${leaveDates.has(dateStr) ? '<div class="leave-dot"></div>' : ''}`;
+    const regularDot = isRegular ? `<div class="leave-dot" style="background:var(--accent2)"></div>` : '';
+    const leaveDot = leaveDates.has(dateStr) ? `<div class="leave-dot"></div>` : '';
+    div.innerHTML = `${d}${leaveDot}${regularDot}`;
     div.onclick = () => { document.getElementById('l-date').value = dateStr; openLeaveModal(); };
     cal.appendChild(div);
   }
@@ -1291,16 +1343,51 @@ window.openStaffModal = function() {
 window.closeStaffModal = function() { document.getElementById('modal-staff').classList.remove('open'); }
 document.getElementById('modal-staff').addEventListener('click', e => { if(e.target===e.currentTarget) closeStaffModal(); });
 
+const DAYS = ['일','월','화','수','목','금','토'];
+
 function renderStaffList() {
   const wrap = document.getElementById('staff-list');
   wrap.innerHTML = '';
   staffList.forEach((s, i) => {
+    const days = regularDays[s] || [];
+    const dayTags = days.length > 0
+      ? days.map(d => `<span class="regular-tag">${DAYS[d]}</span>`).join('')
+      : `<span style="font-size:11px;color:var(--text2)">정기휴일 없음</span>`;
     const div = document.createElement('div');
     div.className = 'leave-item';
-    div.innerHTML = `<div class="leave-item-name">${esc(s)}</div>
+    div.style.flexWrap = 'wrap';
+    div.innerHTML = `
+      <div style="flex:1;min-width:0">
+        <div class="leave-item-name">${esc(s)}</div>
+        <div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap;align-items:center">${dayTags}</div>
+      </div>
+      <button class="btn cyan" onclick="openRegularModal('${esc(s)}')" style="font-size:11px;padding:4px 8px;flex-shrink:0">📆 정기휴일</button>
       <button class="leave-item-del" onclick="deleteStaff(${i})">✕</button>`;
     wrap.appendChild(div);
   });
+}
+
+let editingRegularStaff = null;
+
+window.openRegularModal = function(staffName) {
+  editingRegularStaff = staffName;
+  document.getElementById('regular-modal-title').textContent = `📆 ${staffName} 정기휴일`;
+  const days = regularDays[staffName] || [];
+  document.querySelectorAll('.day-btn').forEach(btn => {
+    btn.classList.toggle('active', days.includes(+btn.dataset.day));
+  });
+  document.getElementById('modal-regular').classList.add('open');
+}
+window.closeRegularModal = function() { document.getElementById('modal-regular').classList.remove('open'); }
+document.getElementById('modal-regular').addEventListener('click', e => { if(e.target===e.currentTarget) closeRegularModal(); });
+
+window.toggleDayBtn = function(btn) { btn.classList.toggle('active'); }
+
+window.saveRegularDays = function() {
+  const selected = [...document.querySelectorAll('.day-btn.active')].map(b => +b.dataset.day);
+  update(regularDaysRef, {[editingRegularStaff]: selected});
+  closeRegularModal();
+  showToast('📆 정기휴일이 저장되었습니다');
 }
 
 window.addStaff = function() {
@@ -1314,14 +1401,17 @@ window.addStaff = function() {
 }
 
 window.deleteStaff = function(idx) {
+  const name = staffList[idx];
   staffList.splice(idx, 1);
   set(staffListRef, staffList);
+  // 정기휴일도 삭제
+  if (regularDays[name]) remove(ref(db, `regularDays/${name}`));
   renderStaffList();
   showToast('🗑️ 직원이 삭제되었습니다');
 }
 
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){ closeAddModal(); closeCatModal(); closeLeaveModal(); closeStaffModal(); }
+  if(e.key==='Escape'){ closeAddModal(); closeCatModal(); closeLeaveModal(); closeStaffModal(); closeRegularModal(); }
   if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){
     if(document.getElementById('modal-add').classList.contains('open')) addItem();
     if(document.getElementById('modal-leave').classList.contains('open')) addLeave();
