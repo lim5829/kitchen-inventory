@@ -618,10 +618,11 @@ window.renderTable = function() {
   const tbody = document.getElementById('table-body');
   tbody.innerHTML = '';
   data.forEach(item => {
-    const qty = item.quantity === '주문필요' ? -1 : (+item.quantity || 0);
-    const qtyColor = qty <= 4 ? '#f87171' : '#4ade80';
-    const qtyDisplay = qty < 0 ? '주문필요' : qty;
-    const rowCls = (qty <= 4 ? 'out-stock' : '') + (selected.has(item.fbKey) ? ' selected' : '');
+    const qtyRaw = item.quantity;
+    const qty = qtyRaw === '주문필요' ? -1 : qtyRaw === '여유있음' ? -2 : (+qtyRaw || 0);
+    const qtyColor = qty === -2 ? '#4ade80' : qty <= 4 ? '#f87171' : '#4ade80';
+    const qtyDisplay = qty === -1 ? '주문필요' : qty === -2 ? '여유있음' : qty;
+    const rowCls = (qty === -1 || (qty >= 0 && qty <= 4) ? 'out-stock' : '') + (selected.has(item.fbKey) ? ' selected' : '');
     const status = item.quantity===0
       ? '<span class="status status-out">없음</span>'
       : item.quantity<item.min
@@ -649,7 +650,7 @@ window.renderTable = function() {
       <td><div style="display:flex;align-items:center;gap:5px;padding:5px 8px;min-width:0">
         <span class="badge" style="background:${cs.bg};color:${cs.color};flex-shrink:0;font-size:10px;padding:1px 5px">${esc(item.category)}</span>
         <div style="min-width:0;flex:1">
-          <div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="name" onblur="saveCell(this)" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:${qty<=4?'#f87171':'var(--text)'}">${esc(item.name)}</div>
+          <div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="name" onblur="saveCell(this)" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:${qty===-2?'#4ade80':qty<=4?'#f87171':'var(--text)'}">${esc(item.name)}</div>
         </div>
         ${deliveryBadge}
       </div></td>
@@ -806,7 +807,15 @@ window.addCategory = function() {
 window.adjustQty = function(fbKey, delta) {
   const item = items[fbKey];
   if (!item) return;
-  const cur = item.quantity === '주문필요' ? 0 : (+item.quantity || 0);
+  if (item.quantity === '주문필요' && delta < 0) {
+    update(ref(db, `inventory/${fbKey}`), {quantity: '여유있음'});
+    return;
+  }
+  if (item.quantity === '여유있음' && delta > 0) {
+    update(ref(db, `inventory/${fbKey}`), {quantity: '주문필요'});
+    return;
+  }
+  const cur = (item.quantity === '여유있음' || item.quantity === '주문필요') ? 0 : (+item.quantity || 0);
   const newVal = cur + delta;
   if (newVal < 0) {
     update(ref(db, `inventory/${fbKey}`), {quantity: '주문필요'});
@@ -879,7 +888,8 @@ window.saveCell = function(el) {
   const {fbkey, field} = el.dataset;
   let val = el.innerText.trim();
   if (field === 'quantity') {
-    val = val === '주문필요' ? '주문필요' : (isNaN(+val) ? 0 : +val);
+    if (val === '주문필요' || val === '여유있음') { /* 그대로 저장 */ }
+    else val = isNaN(+val) ? 0 : +val;
   } else if (field === 'min') {
     val = isNaN(+val) ? 0 : +val;
   }
