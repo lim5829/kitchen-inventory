@@ -618,8 +618,9 @@ window.renderTable = function() {
   const tbody = document.getElementById('table-body');
   tbody.innerHTML = '';
   data.forEach(item => {
-    const qty = +item.quantity || 0;
+    const qty = item.quantity === '주문필요' ? -1 : (+item.quantity || 0);
     const qtyColor = qty <= 4 ? '#f87171' : '#4ade80';
+    const qtyDisplay = qty < 0 ? '주문필요' : qty;
     const rowCls = (qty <= 4 ? 'out-stock' : '') + (selected.has(item.fbKey) ? ' selected' : '');
     const status = item.quantity===0
       ? '<span class="status status-out">없음</span>'
@@ -654,7 +655,7 @@ window.renderTable = function() {
       </div></td>
       <td><div class="qty-wrap" style="justify-content:center">
         <button class="qty-btn" onclick="adjustQty('${item.fbKey}',-1)">−</button>
-        <div class="qty-num editable" contenteditable data-fbkey="${item.fbKey}" data-field="quantity" onblur="saveCell(this)" style="color:${qtyColor}">${item.quantity}</div>
+        <div class="qty-num editable" contenteditable data-fbkey="${item.fbKey}" data-field="quantity" onblur="saveCell(this)" style="color:${qtyColor}">${qtyDisplay}</div>
         <button class="qty-btn" onclick="adjustQty('${item.fbKey}',1)">+</button>
       </div></td>`;
 
@@ -805,8 +806,13 @@ window.addCategory = function() {
 window.adjustQty = function(fbKey, delta) {
   const item = items[fbKey];
   if (!item) return;
-  const newVal = Math.max(0, (+item.quantity || 0) + delta);
-  update(ref(db, `inventory/${fbKey}`), {quantity: newVal});
+  const cur = item.quantity === '주문필요' ? 0 : (+item.quantity || 0);
+  const newVal = cur + delta;
+  if (newVal < 0) {
+    update(ref(db, `inventory/${fbKey}`), {quantity: '주문필요'});
+  } else {
+    update(ref(db, `inventory/${fbKey}`), {quantity: newVal});
+  }
 }
 
 // --- Touch drag for row reordering ---
@@ -872,8 +878,12 @@ function initTouchDrag(srcRow, e) {
 window.saveCell = function(el) {
   const {fbkey, field} = el.dataset;
   let val = el.innerText.trim();
-  if (['quantity','min'].includes(field)) val = isNaN(+val)?0:+val;
-  update(ref(db,`inventory/${fbkey}`), {[field]:val});
+  if (field === 'quantity') {
+    val = val === '주문필요' ? '주문필요' : (isNaN(+val) ? 0 : +val);
+  } else if (field === 'min') {
+    val = isNaN(+val) ? 0 : +val;
+  }
+  update(ref(db, `inventory/${fbkey}`), {[field]: val});
 }
 
 window.sortBy = function(k) { sortKey===k?sortDir*=-1:(sortKey=k,sortDir=1); renderTable(); }
