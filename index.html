@@ -180,6 +180,67 @@
   .sel-info { color: var(--accent2); font-weight: 500; }
   .spacer { flex: 1; }
 
+  /* Tab nav */
+  .tab-nav {
+    display: flex; background: var(--surface); border-bottom: 1px solid var(--border);
+    position: sticky; top: 53px; z-index: 99;
+  }
+  .tab-btn {
+    flex: 1; padding: 10px; font-family: 'Noto Sans KR', sans-serif;
+    font-size: 13px; font-weight: 500; background: none; border: none;
+    color: var(--text2); cursor: pointer; border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+  }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* Leave management */
+  .leave-wrap { padding: 16px 16px 100px; }
+  .leave-month-nav {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .leave-month-title { font-size: 16px; font-weight: 700; color: var(--accent); }
+  .month-btn {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 6px; padding: 4px 12px; font-size: 16px; cursor: pointer;
+  }
+  .leave-calendar {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    gap: 4px; margin-bottom: 16px;
+  }
+  .cal-header { text-align: center; font-size: 11px; color: var(--text2); padding: 4px 0; font-weight: 500; }
+  .cal-day {
+    text-align: center; padding: 8px 4px; border-radius: 8px;
+    font-size: 13px; cursor: pointer; transition: all 0.15s;
+    border: 1px solid transparent; position: relative;
+  }
+  .cal-day:hover { background: var(--surface2); }
+  .cal-day.empty { cursor: default; }
+  .cal-day.has-leave { background: #2a1e00; border-color: var(--accent); color: var(--accent); font-weight: 700; }
+  .cal-day.today { border-color: var(--accent2); color: var(--accent2); }
+  .leave-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--accent); margin: 1px auto 0; }
+
+  .leave-list-section { margin-top: 8px; }
+  .leave-list-title { font-size: 12px; color: var(--text2); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.8px; }
+  .leave-item {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 12px; margin-bottom: 6px;
+  }
+  .leave-item-date { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--accent); min-width: 60px; }
+  .leave-item-name { font-size: 13px; font-weight: 500; flex: 1; }
+  .leave-item-del { background: none; border: none; color: var(--text2); cursor: pointer; font-size: 16px; padding: 2px 6px; border-radius: 4px; }
+  .leave-item-del:hover { color: var(--danger); }
+
+  .leave-add-btn {
+    width: 100%; padding: 12px; background: var(--surface2); border: 1px dashed var(--border);
+    border-radius: 8px; color: var(--text2); font-family: 'Noto Sans KR', sans-serif;
+    font-size: 13px; cursor: pointer; transition: all 0.15s; margin-top: 8px;
+  }
+  .leave-add-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .staff-filter { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+
   /* Login screen */
   .login-screen {
     position: fixed; inset: 0; background: var(--bg);
@@ -298,8 +359,14 @@
   </div>
 </header>
 
+<!-- Tab Navigation -->
+<div class="tab-nav">
+  <button class="tab-btn active" id="tab-inventory" onclick="switchTab('inventory')">📦 재고관리</button>
+  <button class="tab-btn" id="tab-leave" onclick="switchTab('leave')">📅 휴무관리</button>
+</div>
 
-
+<!-- Inventory Section -->
+<div id="section-inventory">
 <div class="filterbar">
   <div class="search-wrap">
     <span class="search-icon">🔍</span>
@@ -322,6 +389,57 @@
     </thead>
     <tbody id="table-body"></tbody>
   </table>
+</div>
+</div><!-- /section-inventory -->
+
+<!-- Leave Section -->
+<div id="section-leave" style="display:none">
+  <div class="leave-wrap">
+    <div class="leave-month-nav">
+      <button class="month-btn" onclick="changeMonth(-1)">‹</button>
+      <div class="leave-month-title" id="leave-month-title"></div>
+      <button class="month-btn" onclick="changeMonth(1)">›</button>
+    </div>
+    <div class="staff-filter" id="staff-filter"></div>
+    <div class="leave-calendar" id="leave-calendar"></div>
+    <div class="leave-list-section">
+      <div class="leave-list-title">이번 달 휴무 목록</div>
+      <div id="leave-list"></div>
+      <button class="leave-add-btn" onclick="openLeaveModal()">+ 휴무 등록</button>
+    </div>
+  </div>
+</div>
+
+<!-- Leave Add Modal -->
+<div class="modal-bg" id="modal-leave">
+  <div class="modal" style="width:320px">
+    <h3>📅 휴무 등록</h3>
+    <label>직원 이름</label>
+    <select id="l-staff"></select>
+    <label>날짜</label>
+    <input type="date" id="l-date">
+    <label>메모 (선택)</label>
+    <input type="text" id="l-memo" placeholder="예: 개인사정, 병가...">
+    <div class="modal-actions">
+      <button class="btn" onclick="closeLeaveModal()">취소</button>
+      <button class="btn primary" onclick="addLeave()">등록</button>
+    </div>
+  </div>
+</div>
+
+<!-- Staff Manager Modal -->
+<div class="modal-bg" id="modal-staff">
+  <div class="modal" style="width:320px">
+    <h3>👤 직원 관리</h3>
+    <div id="staff-list" style="margin-bottom:12px"></div>
+    <div style="display:flex;gap:8px">
+      <input type="text" id="new-staff-name" placeholder="직원 이름" style="flex:1">
+      <button class="btn primary" onclick="addStaff()">추가</button>
+    </div>
+    <div class="modal-actions" style="margin-top:12px">
+      <button class="btn primary" onclick="closeStaffModal()">닫기</button>
+    </div>
+  </div>
 </div>
 
 <!-- Add Item Modal -->
@@ -388,6 +506,8 @@ const catsRef = ref(db, 'categories');
 const staffPwRef = ref(db, 'config/staffPassword');
 const adminPwRef = ref(db, 'config/adminPassword');
 const orderRef = ref(db, 'itemOrder');
+const leaveRef = ref(db, 'leaves');
+const staffListRef = ref(db, 'staffList');
 
 let items = {};
 let itemOrder = {};
@@ -400,10 +520,29 @@ let firstCatLoad = true;
 let dragSrcIdx = null;
 let staffPassword = null;
 let adminPassword = null;
+let leaves = {};
+let staffList = [];
+let currentTab = 'inventory';
+let leaveYear = new Date().getFullYear();
+let leaveMonth = new Date().getMonth();
+let selectedStaff = '전체';
 
 onValue(orderRef, (snap) => {
   itemOrder = snap.val() || {};
   if (!firstLoad) renderTable();
+});
+
+onValue(leaveRef, (snap) => {
+  leaves = snap.val() || {};
+  if (currentTab === 'leave') renderLeave();
+});
+
+onValue(staffListRef, (snap) => {
+  staffList = snap.val() || [];
+  if (!Array.isArray(staffList)) staffList = Object.values(staffList);
+  renderStaffFilter();
+  renderStaffSelect();
+  if (currentTab === 'leave') renderLeave();
 });
 
 // --- Login ---
@@ -1005,10 +1144,187 @@ window.showToast = function(msg) {
   const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),2500);
 }
+
+// --- Tab switch ---
+window.switchTab = function(tab) {
+  currentTab = tab;
+  document.getElementById('section-inventory').style.display = tab === 'inventory' ? '' : 'none';
+  document.getElementById('section-leave').style.display = tab === 'leave' ? '' : 'none';
+  document.getElementById('tab-inventory').classList.toggle('active', tab === 'inventory');
+  document.getElementById('tab-leave').classList.toggle('active', tab === 'leave');
+  if (tab === 'leave') renderLeave();
+}
+
+// --- Leave Management ---
+window.changeMonth = function(delta) {
+  leaveMonth += delta;
+  if (leaveMonth > 11) { leaveMonth = 0; leaveYear++; }
+  if (leaveMonth < 0) { leaveMonth = 11; leaveYear--; }
+  renderLeave();
+}
+
+function renderLeave() {
+  // Month title
+  const months = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+  document.getElementById('leave-month-title').textContent = `${leaveYear}년 ${months[leaveMonth]}`;
+
+  // Filter leaves for this month
+  const monthKey = `${leaveYear}-${String(leaveMonth+1).padStart(2,'0')}`;
+  const monthLeaves = Object.entries(leaves)
+    .map(([k,v]) => ({...v, key:k}))
+    .filter(l => l.date && l.date.startsWith(monthKey))
+    .filter(l => selectedStaff === '전체' || l.staff === selectedStaff)
+    .sort((a,b) => a.date.localeCompare(b.date));
+
+  // Calendar
+  const cal = document.getElementById('leave-calendar');
+  cal.innerHTML = '';
+  ['일','월','화','수','목','금','토'].forEach(d => {
+    const h = document.createElement('div');
+    h.className = 'cal-header';
+    h.textContent = d;
+    cal.appendChild(h);
+  });
+
+  const firstDay = new Date(leaveYear, leaveMonth, 1).getDay();
+  const daysInMonth = new Date(leaveYear, leaveMonth+1, 0).getDate();
+  const today = new Date();
+  const leaveDates = new Set(monthLeaves.map(l => l.date));
+
+  for (let i = 0; i < firstDay; i++) {
+    const empty = document.createElement('div');
+    empty.className = 'cal-day empty';
+    cal.appendChild(empty);
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${leaveYear}-${String(leaveMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const div = document.createElement('div');
+    div.className = 'cal-day';
+    const isToday = today.getFullYear()===leaveYear && today.getMonth()===leaveMonth && today.getDate()===d;
+    if (isToday) div.classList.add('today');
+    if (leaveDates.has(dateStr)) div.classList.add('has-leave');
+    div.innerHTML = `${d}${leaveDates.has(dateStr) ? '<div class="leave-dot"></div>' : ''}`;
+    div.onclick = () => { document.getElementById('l-date').value = dateStr; openLeaveModal(); };
+    cal.appendChild(div);
+  }
+
+  // List
+  const list = document.getElementById('leave-list');
+  list.innerHTML = '';
+  if (monthLeaves.length === 0) {
+    list.innerHTML = `<div style="color:var(--text2);font-size:13px;padding:12px 0">이번 달 휴무가 없어요</div>`;
+  } else {
+    monthLeaves.forEach(l => {
+      const item = document.createElement('div');
+      item.className = 'leave-item';
+      item.innerHTML = `
+        <div class="leave-item-date">${l.date.slice(5)}</div>
+        <div class="leave-item-name">${esc(l.staff)}${l.memo ? ` <span style="color:var(--text2);font-size:11px">· ${esc(l.memo)}</span>` : ''}</div>
+        <button class="leave-item-del" onclick="deleteLeave('${l.key}')">✕</button>`;
+      list.appendChild(item);
+    });
+  }
+}
+
+function renderStaffFilter() {
+  const wrap = document.getElementById('staff-filter');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  const all = document.createElement('button');
+  all.className = 'chip' + (selectedStaff==='전체'?' active':'');
+  all.textContent = '전체';
+  all.onclick = () => { selectedStaff='전체'; renderStaffFilter(); renderLeave(); };
+  wrap.appendChild(all);
+  staffList.forEach(s => {
+    const btn = document.createElement('button');
+    btn.className = 'chip' + (selectedStaff===s?' active':'');
+    btn.textContent = s;
+    btn.onclick = () => { selectedStaff=s; renderStaffFilter(); renderLeave(); };
+    wrap.appendChild(btn);
+  });
+  const mgr = document.createElement('button');
+  mgr.className = 'manage-cat-btn';
+  mgr.textContent = '👤 직원 관리';
+  mgr.onclick = openStaffModal;
+  wrap.appendChild(mgr);
+}
+
+function renderStaffSelect() {
+  const sel = document.getElementById('l-staff');
+  if (!sel) return;
+  sel.innerHTML = '';
+  staffList.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s; opt.textContent = s;
+    sel.appendChild(opt);
+  });
+}
+
+window.openLeaveModal = function() {
+  if (staffList.length === 0) { showToast('먼저 직원을 추가해주세요'); openStaffModal(); return; }
+  document.getElementById('modal-leave').classList.add('open');
+}
+window.closeLeaveModal = function() { document.getElementById('modal-leave').classList.remove('open'); }
+document.getElementById('modal-leave').addEventListener('click', e => { if(e.target===e.currentTarget) closeLeaveModal(); });
+
+window.addLeave = function() {
+  const staff = document.getElementById('l-staff').value;
+  const date = document.getElementById('l-date').value;
+  const memo = document.getElementById('l-memo').value.trim();
+  if (!date) { showToast('날짜를 선택해주세요'); return; }
+  push(leaveRef, {staff, date, memo});
+  closeLeaveModal();
+  document.getElementById('l-memo').value = '';
+  showToast('📅 휴무가 등록되었습니다');
+}
+
+window.deleteLeave = function(key) {
+  if (!confirm('휴무를 삭제할까요?')) return;
+  remove(ref(db, `leaves/${key}`));
+  showToast('🗑️ 삭제 완료');
+}
+
+window.openStaffModal = function() {
+  renderStaffList();
+  document.getElementById('modal-staff').classList.add('open');
+}
+window.closeStaffModal = function() { document.getElementById('modal-staff').classList.remove('open'); }
+document.getElementById('modal-staff').addEventListener('click', e => { if(e.target===e.currentTarget) closeStaffModal(); });
+
+function renderStaffList() {
+  const wrap = document.getElementById('staff-list');
+  wrap.innerHTML = '';
+  staffList.forEach((s, i) => {
+    const div = document.createElement('div');
+    div.className = 'leave-item';
+    div.innerHTML = `<div class="leave-item-name">${esc(s)}</div>
+      <button class="leave-item-del" onclick="deleteStaff(${i})">✕</button>`;
+    wrap.appendChild(div);
+  });
+}
+
+window.addStaff = function() {
+  const name = document.getElementById('new-staff-name').value.trim();
+  if (!name) return;
+  staffList.push(name);
+  set(staffListRef, staffList);
+  document.getElementById('new-staff-name').value = '';
+  renderStaffList();
+  showToast('👤 직원이 추가되었습니다');
+}
+
+window.deleteStaff = function(idx) {
+  staffList.splice(idx, 1);
+  set(staffListRef, staffList);
+  renderStaffList();
+  showToast('🗑️ 직원이 삭제되었습니다');
+}
+
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){ closeAddModal(); closeCatModal(); }
+  if(e.key==='Escape'){ closeAddModal(); closeCatModal(); closeLeaveModal(); closeStaffModal(); }
   if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){
     if(document.getElementById('modal-add').classList.contains('open')) addItem();
+    if(document.getElementById('modal-leave').classList.contains('open')) addLeave();
   }
 });
 </script>
