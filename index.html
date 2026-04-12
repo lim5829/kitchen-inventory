@@ -841,9 +841,9 @@ window.renderTable = function() {
   data.forEach(item => {
     const qtyRaw = item.quantity;
     const qty = qtyRaw === '주문필요' ? -1 : qtyRaw === '여유있음' ? -2 : (+qtyRaw || 0);
-    const qtyColor = qty === -2 ? '#16a34a' : qty <= 4 ? '#dc2626' : '#16a34a';
+    const qtyColor = qty === -2 ? '#16a34a' : qty <= 2 ? '#dc2626' : '#16a34a';
     const qtyDisplay = qty === -1 ? '주문필요' : qty === -2 ? '여유있음' : qty;
-    const rowCls = (qty === -1 || (qty >= 0 && qty <= 4) ? 'out-stock' : '') + (selected.has(item.fbKey) ? ' selected' : '');
+    const rowCls = (qty === -1 || (qty >= 0 && qty <= 2) ? 'out-stock' : '') + (selected.has(item.fbKey) ? ' selected' : '');
     const status = item.quantity===0
       ? '<span class="status status-out">없음</span>'
       : item.quantity<item.min
@@ -871,7 +871,7 @@ window.renderTable = function() {
       <td><div style="display:flex;align-items:center;gap:5px;padding:5px 8px;min-width:0">
         <span class="badge" style="background:${cs.bg};color:${cs.color};flex-shrink:0;font-size:10px;padding:1px 5px">${esc(item.category)}</span>
         <div style="min-width:0;flex:1">
-          <div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="name" onblur="saveCell(this)" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:${qty<=4&&qty!==-2?'#dc2626':'var(--text)'}">${esc(item.name)}</div>
+          <div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="name" onblur="saveCell(this)" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:${qty<=2&&qty!==-2?'#dc2626':'var(--text)'}">${esc(item.name)}</div>
         </div>
         ${deliveryBadge}
       </div></td>
