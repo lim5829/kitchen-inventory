@@ -558,6 +558,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, ref, onValue, push, remove, update, set }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getAuth, signInAnonymously, onAuthStateChanged }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 const app = initializeApp({
   apiKey: "AIzaSyDAGS7E7a2QMorurLa9kseaBmeDB40Kxu8",
@@ -570,6 +572,30 @@ const app = initializeApp({
 });
 
 const db = getDatabase(app);
+const auth = getAuth(app);
+
+// Firebase 익명 인증 - 보안 규칙 적용을 위해 필요
+const authReady = new Promise((resolve, reject) => {
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      resolve(user);
+    }
+  });
+  signInAnonymously(auth).catch(err => {
+    console.error('Auth error:', err);
+    reject(err);
+  });
+});
+
+authReady.then(() => {
+  initListeners();
+}).catch(() => {
+  document.getElementById('loading').innerHTML = `
+    <div style="color:var(--danger);font-size:14px;text-align:center;padding:20px">
+      ⚠️ 인증에 실패했습니다.<br>페이지를 새로고침해주세요.
+    </div>`;
+});
+
 const itemsRef = ref(db, 'inventory');
 const catsRef = ref(db, 'categories');
 const staffPwRef = ref(db, 'config/staffPassword');
@@ -597,6 +623,8 @@ let currentTab = 'inventory';
 let leaveYear = new Date().getFullYear();
 let leaveMonth = new Date().getMonth();
 let selectedStaff = '전체';
+
+function initListeners() {
 
 onValue(orderRef, (snap) => {
   itemOrder = snap.val() || {};
@@ -767,6 +795,8 @@ onValue(itemsRef, (snap) => {
   setSyncStatus(true);
   renderTable();
 }, () => setSyncStatus(false));
+
+} // end initListeners
 
 // Save categories to Firebase immediately
 function saveCats() {
