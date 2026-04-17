@@ -624,7 +624,35 @@ let leaveYear = new Date().getFullYear();
 let leaveMonth = new Date().getMonth();
 let selectedStaff = '전체';
 
+// --- Login ---
+let pwPromise = null;
+
+const DEFAULT_CATS = [
+  {emoji:'☕', name:'원두/커피', color:'#f59e0b'},
+  {emoji:'🥛', name:'유제품', color:'#a5b4fc'},
+  {emoji:'🧴', name:'시럽/소스', color:'#fcd34d'},
+  {emoji:'🧊', name:'냉동/얼음', color:'#67e8f9'},
+  {emoji:'🥤', name:'음료베이스', color:'#6ee7a0'},
+  {emoji:'🍰', name:'디저트/식품', color:'#fca5a5'},
+  {emoji:'🧻', name:'소모품', color:'#d1d5db'},
+  {emoji:'📦', name:'기타', color:'#94a3b8'},
+];
+
 function initListeners() {
+
+pwPromise = new Promise(resolve => {
+  let s = false, a = false;
+  onValue(staffPwRef, (snap) => {
+    staffPassword = snap.exists() ? snap.val() : '1234';
+    if (!snap.exists()) set(staffPwRef, '1234');
+    s = true; if (s && a) resolve();
+  }, { onlyOnce: true });
+  onValue(adminPwRef, (snap) => {
+    adminPassword = snap.exists() ? snap.val() : '0000';
+    if (!snap.exists()) set(adminPwRef, '0000');
+    a = true; if (s && a) resolve();
+  }, { onlyOnce: true });
+});
 
 onValue(orderRef, (snap) => {
   itemOrder = snap.val() || {};
@@ -650,24 +678,40 @@ onValue(regularDaysRef, (snap) => {
   if (document.getElementById('modal-staff').classList.contains('open')) renderStaffList();
 });
 
-// --- Login ---
-const pwPromise = new Promise(resolve => {
-  let s = false, a = false;
-  onValue(staffPwRef, (snap) => {
-    staffPassword = snap.exists() ? snap.val() : '1234';
-    if (!snap.exists()) set(staffPwRef, '1234');
-    s = true; if (s && a) resolve();
-  }, { onlyOnce: true });
-  onValue(adminPwRef, (snap) => {
-    adminPassword = snap.exists() ? snap.val() : '0000';
-    if (!snap.exists()) set(adminPwRef, '0000');
-    a = true; if (s && a) resolve();
-  }, { onlyOnce: true });
+// Firebase listeners - categories
+onValue(catsRef, (snap) => {
+  if (!snap.exists() && firstCatLoad) {
+    set(catsRef, DEFAULT_CATS);
+  } else if (snap.exists()) {
+    const val = snap.val();
+    categories = Array.isArray(val) ? val : Object.values(val);
+  }
+  firstCatLoad = false;
+  renderChips();
+  renderCatSelect();
+  if (!firstLoad) renderTable();
 });
+
+// Firebase listeners - items
+onValue(itemsRef, (snap) => {
+  items = snap.val() || {};
+  if (firstLoad) {
+    firstLoad = false;
+    document.getElementById('loading').classList.add('hidden');
+  }
+  setSyncStatus(true);
+  renderTable();
+}, () => setSyncStatus(false));
+
+} // end initListeners
 
 window.tryLogin = async function() {
   const input = document.getElementById('login-pw').value;
   const err = document.getElementById('login-err');
+  if (!pwPromise) {
+    err.textContent = '연결 중입니다. 잠시 후 다시 시도하세요.';
+    return;
+  }
   await pwPromise;
   if (input === staffPassword || input === adminPassword) {
     document.getElementById('login-screen').classList.add('hidden');
@@ -760,43 +804,6 @@ window.changePassword = function() {
     closePwModal();
   }
 }
-
-const DEFAULT_CATS = [
-  {emoji:'☕', name:'원두/커피', color:'#f59e0b'},
-  {emoji:'🥛', name:'유제품', color:'#a5b4fc'},
-  {emoji:'🧴', name:'시럽/소스', color:'#fcd34d'},
-  {emoji:'🧊', name:'냉동/얼음', color:'#67e8f9'},
-  {emoji:'🥤', name:'음료베이스', color:'#6ee7a0'},
-  {emoji:'🍰', name:'디저트/식품', color:'#fca5a5'},
-  {emoji:'🧻', name:'소모품', color:'#d1d5db'},
-  {emoji:'📦', name:'기타', color:'#94a3b8'},
-];
-
-// Firebase listeners
-onValue(catsRef, (snap) => {
-  if (!snap.exists() && firstCatLoad) {
-    set(catsRef, DEFAULT_CATS);
-  } else if (snap.exists()) {
-    const val = snap.val();
-    categories = Array.isArray(val) ? val : Object.values(val);
-  }
-  firstCatLoad = false;
-  renderChips();
-  renderCatSelect();
-  if (!firstLoad) renderTable();
-});
-
-onValue(itemsRef, (snap) => {
-  items = snap.val() || {};
-  if (firstLoad) {
-    firstLoad = false;
-    document.getElementById('loading').classList.add('hidden');
-  }
-  setSyncStatus(true);
-  renderTable();
-}, () => setSyncStatus(false));
-
-} // end initListeners
 
 // Save categories to Firebase immediately
 function saveCats() {
