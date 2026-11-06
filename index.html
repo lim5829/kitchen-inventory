@@ -359,6 +359,9 @@
   <div class="modal" style="width:300px">
     <h3>⚙️ 관리자 메뉴</h3>
     <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px">
+      <button class="btn" onclick="adminResetCheck()" style="padding:12px;font-size:13px;text-align:left">
+        📋 전체 재고체크 초기화
+      </button>
       <button class="btn" onclick="adminExportCSV()" style="padding:12px;font-size:13px;text-align:left">
         📥 CSV 내보내기
       </button>
@@ -605,6 +608,8 @@ const leaveRef = ref(db, 'leaves');
 const staffListRef = ref(db, 'staffList');
 const regularDaysRef = ref(db, 'regularDays'); // {직원명: [0,3,6]}
 
+const CHECK_PENDING = '체크전';
+
 let items = {};
 let itemOrder = {};
 let regularDays = {}; // 직원별 정기휴일
@@ -778,6 +783,17 @@ window.closeAdminMenu = function() { document.getElementById('modal-admin-menu')
 document.getElementById('modal-admin-menu').addEventListener('click', e => { if(e.target===e.currentTarget) closeAdminMenu(); });
 
 window.adminExportCSV = function() { closeAdminMenu(); exportCSV(); }
+// 전체 재고체크: 기존 수량은 지우지 않고 '체크전' 표시만 켠다. 수량을 입력하면 항목별로 해제된다.
+window.adminResetCheck = function() {
+  const keys = Object.keys(items);
+  if (!keys.length) return;
+  if (!confirm(`재료 ${keys.length}개의 수량을 모두 '체크전'으로 표시할까요?`)) return;
+  const updates = {};
+  keys.forEach(k => { updates[`${k}/checkPending`] = true; });
+  update(itemsRef, updates);
+  closeAdminMenu();
+  showToast('📋 전체 재고체크를 시작합니다');
+}
 window.adminChangeAdminPw = function() { closeAdminMenu(); openPwModal('admin'); }
 window.adminChangeStaffPw = function() { closeAdminMenu(); openPwModal('staff'); }
 
@@ -877,10 +893,11 @@ window.renderTable = function() {
   tbody.innerHTML = '';
   data.forEach(item => {
     const qtyRaw = item.quantity;
+    const pending = !!item.checkPending;
     const qty = qtyRaw === '주문필요' ? -1 : qtyRaw === '여유있음' ? -2 : (+qtyRaw || 0);
-    const qtyColor = qty === -2 ? '#16a34a' : qty <= 2 ? '#dc2626' : '#16a34a';
-    const qtyDisplay = qty === -1 ? '주문필요' : qty === -2 ? '여유있음' : qty;
-    const rowCls = (qty === -1 || (qty >= 0 && qty <= 2) ? 'out-stock' : '') + (selected.has(item.fbKey) ? ' selected' : '');
+    const qtyColor = pending ? '#d97706' : qty === -2 ? '#16a34a' : qty <= 2 ? '#dc2626' : '#16a34a';
+    const qtyDisplay = pending ? CHECK_PENDING : qty === -1 ? '주문필요' : qty === -2 ? '여유있음' : qty;
+    const rowCls = (!pending && (qty === -1 || (qty >= 0 && qty <= 2)) ? 'out-stock' : '') + (selected.has(item.fbKey) ? ' selected' : '');
     const status = item.quantity===0
       ? '<span class="status status-out">없음</span>'
       : item.quantity<item.min
@@ -908,13 +925,13 @@ window.renderTable = function() {
       <td><div style="display:flex;align-items:center;gap:5px;padding:5px 8px;min-width:0">
         <span class="badge" style="background:${cs.bg};color:${cs.color};flex-shrink:0;font-size:10px;padding:1px 5px">${esc(item.category)}</span>
         <div style="min-width:0;flex:1">
-          <div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="name" onblur="saveCell(this)" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:${qty<=2&&qty!==-2?'#dc2626':'var(--text)'}">${esc(item.name)}</div>
+          <div class="editable" contenteditable data-fbkey="${item.fbKey}" data-field="name" onblur="saveCell(this)" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:${!pending&&qty<=2&&qty!==-2?'#dc2626':'var(--text)'}">${esc(item.name)}</div>
         </div>
         ${deliveryBadge}
       </div></td>
       <td><div class="qty-wrap" style="justify-content:center">
         <button class="qty-btn" onclick="adjustQty('${item.fbKey}',-1)">−</button>
-        <div class="qty-num editable" contenteditable data-fbkey="${item.fbKey}" data-field="quantity" onblur="saveCell(this)" style="color:${qtyColor}">${qtyDisplay}</div>
+        <div class="qty-num editable" contenteditable data-fbkey="${item.fbKey}" data-field="quantity" ${pending?'onfocus="clearPendingCell(this)"':''} onblur="saveCell(this)" style="color:${qtyColor}">${qtyDisplay}</div>
         <button class="qty-btn" onclick="adjustQty('${item.fbKey}',1)">+</button>
       </div></td>`;
 
@@ -927,7 +944,8 @@ window.renderTable = function() {
     tbody.appendChild(tr);
   });
 
-  document.getElementById('row-count').textContent = data.length + '개 항목';
+  const pendingCount = data.filter(i => i.checkPending).length;
+  document.getElementById('row-count').textContent = data.length + '개 항목' + (pendingCount ? ` · 체크전 ${pendingCount}개` : '');
   updateSelUI();
 }
 
@@ -1065,6 +1083,11 @@ window.addCategory = function() {
 window.adjustQty = function(fbKey, delta) {
   const item = items[fbKey];
   if (!item) return;
+  // 체크전 항목은 이전 수량이 화면에 없으므로 0부터 다시 센다
+  if (item.checkPending) {
+    update(ref(db, `inventory/${fbKey}`), {quantity: delta < 0 ? '주문필요' : delta, checkPending: null});
+    return;
+  }
   if (item.quantity === '주문필요' && delta < 0) {
     update(ref(db, `inventory/${fbKey}`), {quantity: '여유있음'});
     return;
@@ -1142,16 +1165,24 @@ function initTouchDrag(srcRow, e) {
   document.addEventListener('touchend', onEnd);
 }
 
+window.clearPendingCell = function(el) { if (el.innerText.trim() === CHECK_PENDING) el.textContent = ''; }
+
 window.saveCell = function(el) {
   const {fbkey, field} = el.dataset;
   let val = el.innerText.trim();
+  const changes = {};
   if (field === 'quantity') {
+    // 체크전 칸을 누르기만 하고 나가면 그대로 체크전 유지
+    if (items[fbkey]?.checkPending) {
+      if (val === '' || val === CHECK_PENDING) { el.textContent = CHECK_PENDING; return; }
+      changes.checkPending = null;
+    }
     if (val === '주문필요' || val === '여유있음') { /* 그대로 저장 */ }
     else val = isNaN(+val) ? 0 : +val;
   } else if (field === 'min') {
     val = isNaN(+val) ? 0 : +val;
   }
-  update(ref(db, `inventory/${fbkey}`), {[field]: val});
+  update(ref(db, `inventory/${fbkey}`), {...changes, [field]: val});
 }
 
 window.sortBy = function(k) { sortKey===k?sortDir*=-1:(sortKey=k,sortDir=1); renderTable(); }
@@ -1239,7 +1270,7 @@ window.addItem = function() {
 
 window.exportCSV = function() {
   const h=['재료명','카테고리','현재수량','최소수량','메모'];
-  const rows=Object.values(items).map(i=>[i.name,i.category,i.quantity,i.min,i.memo].map(v=>`"${v||''}"`).join(','));
+  const rows=Object.values(items).map(i=>[i.name,i.category,i.checkPending?CHECK_PENDING:i.quantity,i.min,i.memo].map(v=>`"${v||''}"`).join(','));
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob(['\uFEFF'+[h.join(','),...rows].join('\n')],{type:'text/csv;charset=utf-8'}));
   a.download='달파도재고_'+new Date().toISOString().slice(0,10)+'.csv'; a.click();
